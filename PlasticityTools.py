@@ -70,7 +70,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
         else:
             #create a new mesh
             temp_mesh=bpy.data.meshes.new(TEMP_MESH)
-        instance_obj=bpy.data.objects.new(source_coll.name, temp_mesh)
+        instance_obj=bpy.data.objects.new(INST_PREFIX+source_coll.name, temp_mesh)
         scene_coll.objects.link(instance_obj)
 
    
@@ -98,6 +98,9 @@ class MakeMeshGroupOperator(bpy.types.Operator):
             return {"CANCELLED"}
         
         obj=selected_objs[0]
+        if obj.users_collection[0].name == "Scene Collection":
+            self.report({'WARNING'}, "Selected object is not in a collection")
+            return {"CANCELLED"}
         is_meshgroup=False
         try:
             if obj[CUSTOM_NAME]==INSTANCE_NAME or obj[CUSTOM_NAME]==PIVOT_NAME:
@@ -260,6 +263,62 @@ class FindSourceGroupOperator(bpy.types.Operator):
             for obj in coll_objs:
                 obj.select_set(True)
             bpy.ops.view3d.view_selected()
+
+
+        return {"FINISHED"}
+
+
+
+class AddCustomAxisOperator(bpy.types.Operator):
+    bl_idname = "cat.add_custom_axis"
+    bl_label = "Add Custom Axis Object"
+    bl_description = "Add a Custom Axis Object to the Instance for easier mirror control"
+    bl_options = {'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return all([
+            context.mode == 'OBJECT',
+            len(context.selected_objects),
+        ])
+
+    def execute(self, context):
+        selected_objs = context.selected_objects
+        if len(selected_objs) == 0:
+            self.report({'WARNING'}, "No selected objects")
+            return {"CANCELLED"}
+        obj=selected_objs[0]
+        is_meshgroup=check_is_meshgroup_inst(obj)
+        has_axis=False
+        if is_meshgroup is False:
+            self.report({'WARNING'}, "Selected object is not a Instance")
+            return {"CANCELLED"}  
+        for child in obj.children:
+            if child.type == 'EMPTY':
+                    has_axis=True
+                    break
+        if has_axis is True:
+            self.report({'WARNING'}, "Selected object already has a Custom Axis")
+            return {"CANCELLED"}
+        
+        axis_name = "Axis_" + obj.name
+        axis_obj = bpy.data.objects.new(name=axis_name, object_data=None)
+        # rename_alt(origin_object, origin_name, num=2)
+
+        axis_obj.empty_display_type = "ARROWS"
+        axis_obj.empty_display_size = 0.4
+        axis_obj.show_name = True
+        
+        obj.users_collection[0].objects.link(axis_obj)
+        axis_obj.parent = obj
+        bpy.ops.object.select_all(action='DESELECT')
+        axis_obj.select_set(True)
+
+        for mod in obj.modifiers:
+            if mod.name == GROUP_MOD:
+                mod["Socket_3"] = True
+            if mod.type == "MIRROR":
+                mod.mirror_object = axis_obj
 
 
         return {"FINISHED"}

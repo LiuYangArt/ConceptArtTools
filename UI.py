@@ -1,7 +1,7 @@
 import bpy
 class InstancedCollectionToolPanel(bpy.types.Panel):
     bl_idname = "CAT_PT_tool_panel"
-    bl_label = "Plasticity Group Instance"
+    bl_label = "ConceptArtTools"
     bl_category = "CAT" # Custom tab name
     bl_space_type = "VIEW_3D" # Space type where the panel will be displayed
     bl_region_type = "UI"
@@ -13,7 +13,7 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         layout = self.layout
         box = layout.box()
         box_column = box.column()
-        box_column.label(text="Instanced Collection")
+        box_column.label(text="Plasticity Group Instance")
 
 
         box_column.separator()
@@ -45,6 +45,8 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator(
             "cat.realize_meshgroup", icon="OBJECT_DATA"
         )
+        box_column.operator(
+            "cat.add_custom_axis", icon="ADD")
         
         
 
