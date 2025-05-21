@@ -1,1 +1,0 @@
-7z.exe a -tzip ConceptArtTools.zip ..\ -mx0 -xr!Addon -xr!*.gitignore -xr!*.git -xr!*.blend1 -xr!__pycache__ -xr!*.pyc -xr!_Backup
