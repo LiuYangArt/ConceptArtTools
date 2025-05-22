@@ -47,7 +47,7 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.label(text="Plasticity Group Instance")
 
 
-        box_column.separator()
+        # box_column.separator()
         # box_column.operator(
         #     "cat.instancing_group", icon="OUTLINER_OB_GROUP_INSTANCE"
         # ) 
@@ -60,15 +60,7 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator(
             "cat.find_source_group", icon="VIEWZOOM"
         )
-        # box_column.operator(
-        #     "cat.mirror_instance", icon="MOD_MIRROR"
-        # )
-        # box_column.operator(
-        #     "cat.array_instance", icon="MOD_ARRAY"
-        # )
-        # box_column.operator(
-        #     "cat.remove_instance", icon="TRASH"
-        # )
+
 
         box_column.operator(
             "cat.reset_pivot", icon="EMPTY_ARROWS"
@@ -78,9 +70,13 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         )
         box_column.operator(
             "cat.add_custom_axis", icon="ADD")
+        box_column.separator()
+        box_column.label(text="Concept Utilities")
+
+        # box_column.separator()
         box_column.operator(
             "cat.sync_materials_to_active", icon="MATERIAL")
-        # box_column.operator(
-        #     "cat.set_work_mode", icon="RESTRICT_SELECT_OFF")
+        box_column.operator(
+            "cat.set_decal_object", icon="MOD_DISPLACE")
         box_column.prop(parameters, "work_mode", text="Work Mode")
 

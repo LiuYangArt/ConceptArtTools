@@ -33,8 +33,6 @@ class MakeMeshGroupOperator(bpy.types.Operator):
     #     ])
 
     def execute(self, context):
-
-
         
         selected_objs = context.selected_objects
         scene_coll = bpy.context.scene.collection
@@ -331,6 +329,12 @@ class SyncMaterialsToActiveOperator(bpy.types.Operator):
     bl_description = "Assign Active Object Material to Selected Objects"
     bl_options = {'UNDO'}
 
+    @classmethod
+    def poll(cls, context):
+        return all([
+            context.mode == 'OBJECT',
+            len(context.selected_objects),
+        ])
     def execute(self, context):
         selected_objs = context.selected_objects
         active_obj = context.active_object
@@ -384,7 +388,44 @@ class SetWorkModeOperator(bpy.types.Operator):
 
         return {"FINISHED"}
     
+class SetDecalObjectOperator(bpy.types.Operator):
+    bl_idname = "cat.set_decal_object"
+    bl_label = "Set Decal Object"
+    bl_options = {'UNDO'}
 
+
+    def execute(self, context):
+        # 对于选中的mesh 或者 text 类型的object， 关闭投影， 增加一个displace modifier
+        selected_objs = context.selected_objects
+        if len(selected_objs) == 0:
+            self.report({'WARNING'}, "No selected objects")
+            return {"CANCELLED"}
+
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        count=0
+        for obj in selected_objs:
+            if obj.type in {'MESH', 'FONT'}:
+            # 关闭投影
+                if hasattr(obj, "cycles"):
+                    obj.cycles.is_shadow_catcher = False
+                if hasattr(obj, "visible_shadow"):
+                    obj.visible_shadow = False
+                if hasattr(obj, "show_shadows"):   
+                    obj.display.show_shadows = False
+
+                obj[CUSTOM_NAME]=DECAL_NAME
+
+                # 增加一个displace modifier
+                if DISPLACE_MOD not in obj.modifiers:
+                    disp_mod = obj.modifiers.new(name=DISPLACE_MOD, type='DISPLACE')
+                    disp_mod.strength = 0.002
+                count+=1
+
+
+        self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
+
+        return {"FINISHED"}
+    
 
 #TODO: show/hide source collection , with toggle button
 
