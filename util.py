@@ -2,7 +2,7 @@ import bpy
 from mathutils import Vector
 import addon_utils
 
-#constants
+#constants | 常值
 
 ADDON_NAME = "Conceptart Tools"
 for mod in addon_utils.modules():
@@ -22,6 +22,9 @@ INSTANCE_NAME="CAT_Inst"
 TEMP_MESH="cat_meshgruop_tempmesh"
 OFFSET_ATTR="CAT_Offset"
 WORLD_ORIGIN=Vector((0,0,0))
+MG_SOCKET_GROUP="Socket_2"
+MG_SOCKET_REALIZE="Socket_3"
+MG_SOCKET_OFFSET="Socket_7"
 
 #functions
 def import_node_group(file_path, node_name) -> bpy.types.NodeGroup:
@@ -76,9 +79,9 @@ def add_meshgroup_modifier(mesh,target_group=None,offset=Vector((0,0,0))):
         geo_node_modifier.node_group = bpy.data.node_groups[GROUP_NODE]
 
     #set Collection Instance to target group
-    geo_node_modifier["Socket_2"]=target_group
+    geo_node_modifier[MG_SOCKET_GROUP]=target_group
     #set offset
-    geo_node_modifier["Socket_7"]=offset
+    geo_node_modifier[MG_SOCKET_OFFSET]=offset
 
 def add_mirror_modifier(mesh,axis=0):
     """添加DataTransfer Modifier传递顶点色"""
@@ -126,14 +129,18 @@ def realize_meshgroup_modifier(mesh,realize=True):
         if modifier.name == GROUP_MOD:
             check_modifier = True
             geo_node_modifier = mesh.modifiers[GROUP_MOD]
-            geo_node_modifier["Socket_3"]=realize
+            geo_node_modifier[MG_SOCKET_REALIZE]=realize
+            #刷新gn， 否则结果不会更新
+            mesh.modifiers[GROUP_MOD].show_viewport = True
             break
-
+        
     if check_modifier is False:
         print("Mesh does not have the MeshGroup modifier")
-        return
+
+    return check_modifier
 
 def check_is_meshgroup_inst(obj):
+    """Check if the object is a mesh-group instance"""
     is_meshgroup=False
 
     if obj.type == 'MESH':
@@ -148,6 +155,82 @@ def check_is_meshgroup_inst(obj):
             pass
     return is_meshgroup
 
+def set_work_mode(type):
+    """Set the work mode of the viewport"""
+    match type:
+        case "MODELING":
+            bpy.context.space_data.overlay.show_extras = False
+            bpy.context.space_data.overlay.show_floor = False
+            bpy.context.space_data.overlay.show_axis_x = False
+            bpy.context.space_data.overlay.show_axis_y = False
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = False
+            bpy.context.space_data.show_object_select_camera = False
+            bpy.context.space_data.show_object_select_light = False
+            bpy.context.space_data.show_object_select_volume = False
+
+            bpy.context.space_data.show_object_select_mesh = True
+            bpy.context.space_data.show_object_select_curve = True
+            bpy.context.space_data.show_object_select_surf = True
+            bpy.context.space_data.show_object_select_meta = True
+            bpy.context.space_data.show_object_select_font = True
+            bpy.context.space_data.show_object_select_curves = True
+            bpy.context.space_data.show_object_select_pointcloud = True
+            bpy.context.space_data.show_object_select_grease_pencil = True
+            bpy.context.space_data.show_object_select_armature = True
+            bpy.context.space_data.show_object_select_lattice = True
+            bpy.context.space_data.show_object_select_empty = True
+
+        case "LIGHTING":
+            bpy.context.space_data.overlay.show_extras = True
+            bpy.context.space_data.overlay.show_floor = False
+            bpy.context.space_data.overlay.show_axis_x = False
+            bpy.context.space_data.overlay.show_axis_y = False
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = True
+            bpy.context.space_data.show_object_select_camera = False
+            bpy.context.space_data.show_object_select_light = True
+
+            bpy.context.space_data.show_object_select_volume = False
+            bpy.context.space_data.show_object_select_mesh = False
+            bpy.context.space_data.show_object_select_curve = False
+            bpy.context.space_data.show_object_select_surf = False
+            bpy.context.space_data.show_object_select_meta = False
+            bpy.context.space_data.show_object_select_font = False
+            bpy.context.space_data.show_object_select_curves = False
+            bpy.context.space_data.show_object_select_pointcloud = False
+            bpy.context.space_data.show_object_select_grease_pencil = False
+            bpy.context.space_data.show_object_select_armature = False
+            bpy.context.space_data.show_object_select_lattice = False
+            bpy.context.space_data.show_object_select_empty = False
+
+
+
+        case "BLENDER DEFAULT":
+            bpy.context.space_data.overlay.show_extras = True
+            bpy.context.space_data.overlay.show_floor = True
+            bpy.context.space_data.overlay.show_axis_x = True
+            bpy.context.space_data.overlay.show_axis_y = True
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = True
+            bpy.context.space_data.show_object_select_camera = True
+            bpy.context.space_data.show_object_select_light = True
+            bpy.context.space_data.show_object_select_volume = True
+
+            bpy.context.space_data.show_object_select_mesh = True
+            bpy.context.space_data.show_object_select_curve = True
+            bpy.context.space_data.show_object_select_surf = True
+            bpy.context.space_data.show_object_select_meta = True
+            bpy.context.space_data.show_object_select_font = True
+            bpy.context.space_data.show_object_select_curves = True
+            bpy.context.space_data.show_object_select_pointcloud = True
+            bpy.context.space_data.show_object_select_grease_pencil = True
+            bpy.context.space_data.show_object_select_armature = True
+            bpy.context.space_data.show_object_select_lattice = True
+            bpy.context.space_data.show_object_select_empty = True
 
 def find_objs_bb_center(objs):
     ## Find the center of the bounding box of all objects
@@ -187,3 +270,30 @@ def find_objs_bb_lowest_center(objs):
     center = Vector((center_xy.x, center_xy.y, lowest_z))
     return center
 
+def find_selected_element_center():
+    # When in object mode, find the center of the selected objects.
+    # When in edit mode, find the center of the selected vertices in all selected mesh objects.
+    selected_objects = bpy.context.selected_objects
+    if len(selected_objects) == 0:
+        return None
+
+    # Check if any selected object is in edit mode and is a mesh
+    edit_mode_meshes = [obj for obj in selected_objects if obj.type == 'MESH' and obj.mode == 'EDIT']
+    if edit_mode_meshes:
+        all_selected_verts = []
+        # Switch all edit mode objects to object mode to access their mesh data
+        for obj in edit_mode_meshes:
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.mode_set(mode='OBJECT')
+            all_selected_verts.extend([obj.matrix_world @ v.co for v in obj.data.vertices if v.select])
+        # Restore the first object to edit mode
+        bpy.context.view_layer.objects.active = edit_mode_meshes[0]
+        bpy.ops.object.mode_set(mode='EDIT')
+        if not all_selected_verts:
+            return None
+        center = sum(all_selected_verts, Vector((0, 0, 0))) / len(all_selected_verts)
+        return center
+    else:
+        # Get the center of the selected objects in object mode
+        center = find_objs_bb_center(selected_objects)
+        return center

@@ -17,20 +17,20 @@ class MakeMeshGroupOperator(bpy.types.Operator):
             ('LOWEST', 'Group Bottom', 
             'Set pivot to lowest center of objects', 2),
 
-            ('SELECTED', 'Selected object', 
-            'Set pivot to selected object center', 3),
+            ('SELECTED', 'Selected', 
+            'Set pivot to center of selected elements. works in OBJECT and EDIT mode', 3),
             ('CURSOR', '3D Cursor',
             'Set pivot to 3D cursor location', 4),
         ]
     )
 
 
-    @classmethod
-    def poll(cls, context):
-        return all([
-            context.mode == 'OBJECT',
-            len(context.selected_objects),
-        ])
+    # @classmethod
+    # def poll(cls, context):
+    #     return all([
+    #         context.mode == 'OBJECT',
+    #         len(context.selected_objects),
+    #     ])
 
     def execute(self, context):
 
@@ -47,11 +47,13 @@ class MakeMeshGroupOperator(bpy.types.Operator):
         elif self.pivot == 'LOWEST':
             offset = find_objs_bb_lowest_center(coll_objs)
         elif self.pivot == 'SELECTED':
-            offset = find_objs_bb_center(selected_objs)
+            offset = find_selected_element_center()
         elif self.pivot == 'CURSOR':
             cursor = bpy.context.scene.cursor
             offset = cursor.location.copy()
-
+        current_mode = bpy.context.active_object.mode
+        if current_mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
 
         
 
@@ -84,6 +86,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
 
         bpy.ops.object.select_all(action='DESELECT')
         instance_obj.select_set(True)
+        # bpy.ops.object.mode_set(mode=current_mode)
 
         return {"FINISHED"}
     
@@ -175,9 +178,9 @@ class ResetPivotOperator(bpy.types.Operator):
         obj=selected_objs[0]
         obj_loc_raw=obj.location.copy()
   
-        source_coll=obj.modifiers[GROUP_MOD]["Socket_2"]
+        source_coll=obj.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
         source_objs=source_coll.all_objects
-        offset_raw=obj.modifiers[GROUP_MOD]["Socket_7"]
+        offset_raw=obj.modifiers[GROUP_MOD][MG_SOCKET_OFFSET]
         offset_raw=Vector((offset_raw[0],offset_raw[1],offset_raw[2]))
         offset_raw=offset_raw.copy()
         cursor = bpy.context.scene.cursor
@@ -250,7 +253,7 @@ class FindSourceGroupOperator(bpy.types.Operator):
             return {"CANCELLED"}
         elif is_meshgroup is True:
             #get the source collection
-            source_coll=obj.modifiers[GROUP_MOD]["Socket_2"]
+            source_coll=obj.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
 
             #select the source collection
             bpy.ops.object.select_all(action='DESELECT')
@@ -313,7 +316,7 @@ class AddCustomAxisOperator(bpy.types.Operator):
 
         for mod in obj.modifiers:
             if mod.name == GROUP_MOD:
-                mod["Socket_3"] = True
+                mod[MG_SOCKET_REALIZE] = True
             if mod.type == "MIRROR":
                 mod.mirror_object = axis_obj
 
@@ -334,17 +337,13 @@ class SyncMaterialsToActiveOperator(bpy.types.Operator):
         if len(selected_objs) <= 1 or active_obj is None:
             self.report({'WARNING'}, "No vaild target objects, Need at least 2 selected objects")
             return {"CANCELLED"}
-        # if active_obj.type != "MESH" or active_obj.type != "CURVE":
-        #     print(active_obj.type)
-        #     self.report({'WARNING'}, "Active object is not a mesh")
-        #     return {"CANCELLED"}
 
         if len(active_obj.data.materials) ==0:
             self.report({'WARNING'}, "Active object has no material")
             return {"CANCELLED"}
         meshes = []
         for obj in selected_objs:
-            if obj.type == "MESH" or "CURVE":
+            if len(obj.data.materials) > 0:
                 meshes.append(obj)
         source_mat=active_obj.data.materials[0]
         for obj in meshes:
@@ -360,81 +359,7 @@ class SyncMaterialsToActiveOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def set_work_mode(type):
-    match type:
-        case "MODELING":
-            bpy.context.space_data.overlay.show_extras = False
-            bpy.context.space_data.overlay.show_floor = False
-            bpy.context.space_data.overlay.show_axis_x = False
-            bpy.context.space_data.overlay.show_axis_y = False
-            bpy.context.space_data.overlay.show_axis_z = False
 
-            bpy.context.space_data.show_object_select_light_probe = False
-            bpy.context.space_data.show_object_select_camera = False
-            bpy.context.space_data.show_object_select_light = False
-            bpy.context.space_data.show_object_select_volume = False
-
-            bpy.context.space_data.show_object_select_mesh = True
-            bpy.context.space_data.show_object_select_curve = True
-            bpy.context.space_data.show_object_select_surf = True
-            bpy.context.space_data.show_object_select_meta = True
-            bpy.context.space_data.show_object_select_font = True
-            bpy.context.space_data.show_object_select_curves = True
-            bpy.context.space_data.show_object_select_pointcloud = True
-            bpy.context.space_data.show_object_select_grease_pencil = True
-            bpy.context.space_data.show_object_select_armature = True
-            bpy.context.space_data.show_object_select_lattice = True
-            bpy.context.space_data.show_object_select_empty = True
-
-        case "LIGHTING":
-            bpy.context.space_data.overlay.show_extras = True
-            bpy.context.space_data.overlay.show_floor = False
-            bpy.context.space_data.overlay.show_axis_x = False
-            bpy.context.space_data.overlay.show_axis_y = False
-            bpy.context.space_data.overlay.show_axis_z = False
-
-            bpy.context.space_data.show_object_select_light_probe = True
-            bpy.context.space_data.show_object_select_camera = False
-            bpy.context.space_data.show_object_select_light = True
-
-            bpy.context.space_data.show_object_select_volume = False
-            bpy.context.space_data.show_object_select_mesh = False
-            bpy.context.space_data.show_object_select_curve = False
-            bpy.context.space_data.show_object_select_surf = False
-            bpy.context.space_data.show_object_select_meta = False
-            bpy.context.space_data.show_object_select_font = False
-            bpy.context.space_data.show_object_select_curves = False
-            bpy.context.space_data.show_object_select_pointcloud = False
-            bpy.context.space_data.show_object_select_grease_pencil = False
-            bpy.context.space_data.show_object_select_armature = False
-            bpy.context.space_data.show_object_select_lattice = False
-            bpy.context.space_data.show_object_select_empty = False
-
-
-
-        case "BLENDER DEFAULT":
-            bpy.context.space_data.overlay.show_extras = True
-            bpy.context.space_data.overlay.show_floor = True
-            bpy.context.space_data.overlay.show_axis_x = True
-            bpy.context.space_data.overlay.show_axis_y = True
-            bpy.context.space_data.overlay.show_axis_z = False
-
-            bpy.context.space_data.show_object_select_light_probe = True
-            bpy.context.space_data.show_object_select_camera = True
-            bpy.context.space_data.show_object_select_light = True
-            bpy.context.space_data.show_object_select_volume = True
-
-            bpy.context.space_data.show_object_select_mesh = True
-            bpy.context.space_data.show_object_select_curve = True
-            bpy.context.space_data.show_object_select_surf = True
-            bpy.context.space_data.show_object_select_meta = True
-            bpy.context.space_data.show_object_select_font = True
-            bpy.context.space_data.show_object_select_curves = True
-            bpy.context.space_data.show_object_select_pointcloud = True
-            bpy.context.space_data.show_object_select_grease_pencil = True
-            bpy.context.space_data.show_object_select_armature = True
-            bpy.context.space_data.show_object_select_lattice = True
-            bpy.context.space_data.show_object_select_empty = True
 
 
 class SetWorkModeOperator(bpy.types.Operator):
