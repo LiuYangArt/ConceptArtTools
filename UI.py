@@ -1,4 +1,27 @@
 import bpy
+from bpy.props import (
+    BoolProperty,
+    EnumProperty,
+    FloatProperty,
+    FloatVectorProperty,
+    IntProperty,
+    StringProperty,
+)
+from bpy.types import PropertyGroup
+
+class UIParams(PropertyGroup):
+    """UI参数"""
+    work_mode: bpy.props.EnumProperty(
+    name='Set View Mode',
+    items=[
+        ('DEFAULT', 'Blender Default',''),
+        ('MODELING', 'Modeling Mode', ''),
+        ('LIGHTING', 'Lighting Mode', ''),
+
+    ],
+    default='DEFAULT',
+    )
+
 class InstancedCollectionToolPanel(bpy.types.Panel):
     bl_idname = "CAT_PT_tool_panel"
     bl_label = "ConceptArtTools"
@@ -47,6 +70,9 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         )
         box_column.operator(
             "cat.add_custom_axis", icon="ADD")
-        
-        
+        box_column.operator(
+            "cat.sync_materials_to_active", icon="MATERIAL")
+        # box_column.operator(
+        #     "cat.set_work_mode", icon="RESTRICT_SELECT_OFF")
+        box_column.prop(parameters, "work_mode", text="Set Work Mode")
 
