@@ -2,6 +2,8 @@ import bpy
 from mathutils import Vector
 import addon_utils
 
+#constants
+
 ADDON_NAME = "Conceptart Tools"
 for mod in addon_utils.modules():
     if mod.bl_info['name'] == ADDON_NAME:
@@ -21,6 +23,7 @@ TEMP_MESH="cat_meshgruop_tempmesh"
 OFFSET_ATTR="CAT_Offset"
 WORLD_ORIGIN=Vector((0,0,0))
 
+#functions
 def import_node_group(file_path, node_name) -> bpy.types.NodeGroup:
     """从文件载入NodeGroup"""
 

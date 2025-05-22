@@ -24,13 +24,19 @@ bl_info = {
     "category": "Generic",
 }
 
+import bpy
 from . import auto_load
+#传递UI参数
+from bpy.props import PointerProperty
+from .UI import UIParams
 
 auto_load.init()
 
 
 def register():
     auto_load.register()
+    #注册UI参数
+    bpy.types.Scene.cat_params = PointerProperty(type=UIParams)
 
 
 def unregister():

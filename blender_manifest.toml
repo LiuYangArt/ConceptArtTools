@@ -4,7 +4,7 @@ schema_version = "1.0.0"
 # Change the values according to your extension
 id = "conceptart_tools"
 version = "1.0.0"
-name = "Conceptart Tools"
+name = "ConceptArt Tools"
 tagline = "This is another extension"
 maintainer = "LiuYang"
 # Supported types: "add-on", "theme"

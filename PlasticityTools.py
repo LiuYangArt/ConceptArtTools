@@ -2,9 +2,6 @@ import bpy
 from mathutils import Vector,Matrix
 from .util import *
 
-#Constants
-
-
 
 class MakeMeshGroupOperator(bpy.types.Operator):
     bl_idname = "cat.make_mesh_group"
@@ -322,8 +319,157 @@ class AddCustomAxisOperator(bpy.types.Operator):
 
 
         return {"FINISHED"}
+    
 
 
+class SyncMaterialsToActiveOperator(bpy.types.Operator):
+    bl_idname = "cat.sync_materials_to_active"
+    bl_label = "SyncMaterialsToActive"
+    bl_description = "Assign Active Object Material to Selected Objects"
+    bl_options = {'UNDO'}
+
+    def execute(self, context):
+        selected_objs = context.selected_objects
+        active_obj = context.active_object
+        if len(selected_objs) <= 1 or active_obj is None:
+            self.report({'WARNING'}, "No vaild target objects, Need at least 2 selected objects")
+            return {"CANCELLED"}
+        # if active_obj.type != "MESH" or active_obj.type != "CURVE":
+        #     print(active_obj.type)
+        #     self.report({'WARNING'}, "Active object is not a mesh")
+        #     return {"CANCELLED"}
+
+        if len(active_obj.data.materials) ==0:
+            self.report({'WARNING'}, "Active object has no material")
+            return {"CANCELLED"}
+        meshes = []
+        for obj in selected_objs:
+            if obj.type == "MESH" or "CURVE":
+                meshes.append(obj)
+        source_mat=active_obj.data.materials[0]
+        for obj in meshes:
+            if obj != active_obj:
+                if len(obj.data.materials) > 0:
+                    for i in range(len(obj.data.materials)):
+                        obj.data.materials[i] = source_mat
+
+                else:
+                    obj.data.materials.append(source_mat)
+
+        
+        return {"FINISHED"}
+
+
+def set_work_mode(type):
+    match type:
+        case "MODELING":
+            bpy.context.space_data.overlay.show_extras = False
+            bpy.context.space_data.overlay.show_floor = False
+            bpy.context.space_data.overlay.show_axis_x = False
+            bpy.context.space_data.overlay.show_axis_y = False
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = False
+            bpy.context.space_data.show_object_select_camera = False
+            bpy.context.space_data.show_object_select_light = False
+            bpy.context.space_data.show_object_select_volume = False
+
+            bpy.context.space_data.show_object_select_mesh = True
+            bpy.context.space_data.show_object_select_curve = True
+            bpy.context.space_data.show_object_select_surf = True
+            bpy.context.space_data.show_object_select_meta = True
+            bpy.context.space_data.show_object_select_font = True
+            bpy.context.space_data.show_object_select_curves = True
+            bpy.context.space_data.show_object_select_pointcloud = True
+            bpy.context.space_data.show_object_select_grease_pencil = True
+            bpy.context.space_data.show_object_select_armature = True
+            bpy.context.space_data.show_object_select_lattice = True
+            bpy.context.space_data.show_object_select_empty = True
+
+        case "LIGHTING":
+            bpy.context.space_data.overlay.show_extras = True
+            bpy.context.space_data.overlay.show_floor = False
+            bpy.context.space_data.overlay.show_axis_x = False
+            bpy.context.space_data.overlay.show_axis_y = False
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = True
+            bpy.context.space_data.show_object_select_camera = False
+            bpy.context.space_data.show_object_select_light = True
+
+            bpy.context.space_data.show_object_select_volume = False
+            bpy.context.space_data.show_object_select_mesh = False
+            bpy.context.space_data.show_object_select_curve = False
+            bpy.context.space_data.show_object_select_surf = False
+            bpy.context.space_data.show_object_select_meta = False
+            bpy.context.space_data.show_object_select_font = False
+            bpy.context.space_data.show_object_select_curves = False
+            bpy.context.space_data.show_object_select_pointcloud = False
+            bpy.context.space_data.show_object_select_grease_pencil = False
+            bpy.context.space_data.show_object_select_armature = False
+            bpy.context.space_data.show_object_select_lattice = False
+            bpy.context.space_data.show_object_select_empty = False
+
+
+
+        case "BLENDER DEFAULT":
+            bpy.context.space_data.overlay.show_extras = True
+            bpy.context.space_data.overlay.show_floor = True
+            bpy.context.space_data.overlay.show_axis_x = True
+            bpy.context.space_data.overlay.show_axis_y = True
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = True
+            bpy.context.space_data.show_object_select_camera = True
+            bpy.context.space_data.show_object_select_light = True
+            bpy.context.space_data.show_object_select_volume = True
+
+            bpy.context.space_data.show_object_select_mesh = True
+            bpy.context.space_data.show_object_select_curve = True
+            bpy.context.space_data.show_object_select_surf = True
+            bpy.context.space_data.show_object_select_meta = True
+            bpy.context.space_data.show_object_select_font = True
+            bpy.context.space_data.show_object_select_curves = True
+            bpy.context.space_data.show_object_select_pointcloud = True
+            bpy.context.space_data.show_object_select_grease_pencil = True
+            bpy.context.space_data.show_object_select_armature = True
+            bpy.context.space_data.show_object_select_lattice = True
+            bpy.context.space_data.show_object_select_empty = True
+
+
+class SetWorkModeOperator(bpy.types.Operator):
+    bl_idname = "cat.set_work_mode"
+    bl_label = "Set Work Mode"
+    bl_options = {'UNDO'}
+
+
+    def execute(self, context):
+        # 接收传递过来的参数
+        params = context.scene.cat_params
+        work_mode=params.work_mode
+        
+        if work_mode == 'DEFAULT':
+            set_work_mode("BLENDER DEFAULT")
+        elif work_mode == 'MODELING':
+            set_work_mode("MODELING")
+        elif work_mode == 'LIGHTING':
+            set_work_mode("LIGHTING")
+
+        self.report({'INFO'}, f"Set work mode to {work_mode}")
+
+        return {"FINISHED"}
+    
+
+
+#TODO: show/hide source collection , with toggle button
+
+
+
+
+#TODO: show/hide plasticity collection 
+
+
+#TODO: material matching by id?  need to look into plasticity doc
 
 # class MirrorInstanceOperator(bpy.types.Operator):
 #     bl_idname = "cat.mirror_instance"

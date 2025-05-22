@@ -9,6 +9,10 @@ from bpy.props import (
 )
 from bpy.types import PropertyGroup
 
+def run_set_work_mode_op(self, context):
+    """ 当ui参数改变时，运行对应的operator """
+    bpy.ops.cat.set_work_mode('INVOKE_DEFAULT')
+
 class UIParams(PropertyGroup):
     """UI参数"""
     work_mode: bpy.props.EnumProperty(
@@ -20,6 +24,8 @@ class UIParams(PropertyGroup):
 
     ],
     default='DEFAULT',
+    #执行function， 运行对应的operator
+    update=run_set_work_mode_op
     )
 
 class InstancedCollectionToolPanel(bpy.types.Panel):
@@ -32,7 +38,9 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
 
 
 
+
     def draw(self, context):
+        parameters = context.scene.cat_params
         layout = self.layout
         box = layout.box()
         box_column = box.column()
@@ -74,5 +82,5 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
             "cat.sync_materials_to_active", icon="MATERIAL")
         # box_column.operator(
         #     "cat.set_work_mode", icon="RESTRICT_SELECT_OFF")
-        box_column.prop(parameters, "work_mode", text="Set Work Mode")
+        box_column.prop(parameters, "work_mode", text="Work Mode")
 
