@@ -25,12 +25,15 @@ class SyncMaterialsToActiveOperator(bpy.types.Operator):
             return {"CANCELLED"}
         meshes = []
         for obj in selected_objs:
-            if len(obj.data.materials) > 0:
+            if hasattr(obj.data,"materials"):
                 meshes.append(obj)
         source_mat=active_obj.data.materials[0]
         for obj in meshes:
             if obj != active_obj:
-                if len(obj.data.materials) > 0:
+                if len(obj.data.materials) == 0:
+                    # print("no mat slot")
+                    obj.data.materials.append(source_mat)
+                elif len(obj.data.materials) > 0:
                     for i in range(len(obj.data.materials)):
                         obj.data.materials[i] = source_mat
 

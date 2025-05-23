@@ -5,7 +5,7 @@ LIGHT_COLLECTION_NAME =  "_CAT_Lights"
 def get_all_lights():
     return [obj for obj in bpy.data.objects if obj.type == "LIGHT"]
 
-
+# new_location=obj.location+offset
 
 class EditCollection(bpy.types.Operator):
     """Edit the Collection referenced by this Collection Instance in a new Scene"""
@@ -35,12 +35,7 @@ class EditCollection(bpy.types.Operator):
             return True
         else: #not in edit mode
             return False
-    @classmethod
-    def poll(cls, context):
-        return all([
-            context.mode == 'OBJECT',
-            len(context.selected_objects),
-        ])
+
     def execute(self, context):
         # prefs = context.preferences.addons[package_name].preferences
         selected_objects = bpy.context.selected_objects

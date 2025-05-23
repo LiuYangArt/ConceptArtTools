@@ -34,6 +34,10 @@ def run_post_refacet_operations(context, target_filename, operator):
     bpy.ops.object.select_all(action='DESELECT')
     count = post_refacet_data["count"]
     refacted_objs = post_refacet_data["refacted_objs"]
+    for data in post_refacet_data["source_group_visibility"]:
+        hide_viewport= data["hide_viewport"]
+        hide_select= data["hide_select"]
+
 
     for data in post_refacet_data["mesh_groups"]:
         obj = data["obj"]
@@ -62,6 +66,11 @@ def run_post_refacet_operations(context, target_filename, operator):
             new_obj.location = obj_loc_inst
             new_obj.select_set(True)
         bpy.data.objects.remove(obj)
+
+        source_group.hide_viewport = hide_viewport
+        # source_group.visibilty_set=hide_eye
+        source_group.hide_select = hide_select
+
 
     # 清理
     post_refacet_data = None
@@ -125,7 +134,7 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
         plasticity_bridge = False
         refacet_objs = []
         mesh_groups = []  # 存储 MeshGroup 数据
-
+        source_group_visibility = []
         # 推入撤销堆栈
         bpy.ops.ed.undo_push(message="Apply Mesh Group")
 
@@ -142,6 +151,13 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                     obj_loc_target = WORLD_ORIGIN - offset_raw
 
                     source_group = group_mod[MG_SOCKET_GROUP]
+                    source_group_visibility.append({
+                        "hide_viewport": source_group.hide_viewport,
+                        "hide_select": source_group.hide_select,
+                    })
+                    source_group.hide_viewport = False
+                    source_group.hide_select = False
+
                     source_objs = source_group.all_objects
                     bpy.ops.object.select_all(action='DESELECT')
 
@@ -199,7 +215,8 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                 post_refacet_data = {
                     "count": count,
                     "refacted_objs": refacet_objs,
-                    "mesh_groups": mesh_groups
+                    "mesh_groups": mesh_groups,
+                    "source_group_visibility" : source_group_visibility
                 }
                 plasticity_bridge = True
 
