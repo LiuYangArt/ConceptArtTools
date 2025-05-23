@@ -299,3 +299,23 @@ def find_selected_element_center():
         # Get the center of the selected objects in object mode
         center = find_objs_bb_center(selected_objects)
         return center
+    
+def set_object_pivot_location(obj, location: Vector):
+    """
+    Set the object's origin (pivot) to the specified world location.
+    """
+    # Calculate the offset from the object's current origin to the target location
+    offset = location - obj.location
+    # Move the object so its origin matches the target location
+    obj.location += offset
+    # Move all vertices in the opposite direction to keep the mesh in place
+    if obj.type == 'MESH':
+        mesh = obj.data
+        for v in mesh.vertices:
+            v.co -= offset
+    # For other object types, additional handling may be needed
+
+def clean_user(target_object: bpy.types.Object) -> None:
+    """如果所选object有多个user，转为single user"""
+    if target_object.users > 1:
+        target_object.data = target_object.data.copy()

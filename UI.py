@@ -70,9 +70,22 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         )
         box_column.operator(
             "cat.add_custom_axis", icon="ADD")
+        box_column.operator(
+            "cat.apply_meshgroup", icon="MESH_DATA")
+        box_column.operator(
+            "cat.isolate_group", icon="VIEWZOOM"
+        )
+        
+
+        # box_column.operator(
+        #     "object.refacet_and_wait", icon="ADD")
+        
+        
+
+
+
         box_column.separator()
         box_column.label(text="Concept Utilities")
-
         # box_column.separator()
         box_column.operator(
             "cat.sync_materials_to_active", icon="MATERIAL")
