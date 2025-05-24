@@ -1,13 +1,14 @@
 import bpy
 from mathutils import Vector
 from .util import *
+import bmesh
 
 
 class MakeMeshGroupOperator(bpy.types.Operator):
     bl_idname = "cat.make_mesh_group"
     bl_label = "Make MeshGroup Instance"
     bl_description = (
-        "Select one object and it will convert its' collection to a mesh-group instance"
+        "Select one object and it will convert its' collection to a mesh-group instance. If In Edit Mode, Pivot will be set to center ofselected verts"
     )
     bl_options = {"UNDO"}
 
@@ -40,8 +41,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
                     source_groups.append(obj.users_collection[0])
 
         if len(source_groups) > 0:
-            # 导入用于生成Instance的Geometry Node
-            import_node_group(preset_path, GROUP_NODE)
+            
 
             for source_coll in source_groups:
                 print(f"create instance for {source_coll.name} ")
@@ -60,6 +60,8 @@ class MakeMeshGroupOperator(bpy.types.Operator):
                 # current_mode = bpy.context.active_object.mode
                 if current_mode != "OBJECT":
                     bpy.ops.object.mode_set(mode="OBJECT")
+                # 导入用于生成Instance的Geometry Node
+                import_node_group(preset_path, GROUP_NODE)
 
                 temp_mesh = bpy.data.meshes.new(TEMP_MESH)
                 instance_obj = bpy.data.objects.new(
@@ -87,7 +89,6 @@ class MakeMeshGroupOperator(bpy.types.Operator):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        # #check if the selected object is valid
         selected_objs = context.selected_objects
         if len(selected_objs) == 0:
             self.report({"WARNING"}, "No selected objects")
@@ -107,6 +108,17 @@ class MakeMeshGroupOperator(bpy.types.Operator):
         if is_meshgroup is True:
             self.report({"WARNING"}, "Selected object is already a INSTANCE")
             return {"CANCELLED"}
+
+        # Check if in EDIT mode and has selected vertices
+        if context.mode == "EDIT_MESH":
+            bm = bmesh.from_edit_mesh(obj.data)
+            selected_verts = [v for v in bm.verts if v.select]
+            if selected_verts:
+                self.pivot = "SELECTED"
+                return self.execute(context)
+            else:
+                bpy.ops.object.mode_set(mode="OBJECT")
+                # fall through to show dialog
 
         # show dialog
         wm = context.window_manager

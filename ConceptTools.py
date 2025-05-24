@@ -1,5 +1,6 @@
 import bpy
 from .util import *
+import bmesh
 
 class SyncMaterialsToActiveOperator(bpy.types.Operator):
     bl_idname = "cat.sync_materials_from_active"
@@ -75,36 +76,46 @@ class SetDecalObjectOperator(bpy.types.Operator):
     bl_description = "Turn off shadow and add displacement offset"  
     bl_options = {'UNDO'}
 
-    @classmethod
-    def poll(cls, context):
-        return all([
-            context.mode == 'OBJECT',
-            len(context.selected_objects),
-        ])
     def execute(self, context):
-        # 对于选中的mesh 或者 text 类型的object， 关闭投影， 增加一个displace modifier
+        # 如果在EDIT MODE，处理选中顶点
+        if context.mode == 'EDIT_MESH':
+            obj = context.active_object
+            
+            bm = bmesh.from_edit_mesh(obj.data)
+            selected_verts = [v for v in bm.verts if v.select]
+            if selected_verts:
+                # 删除未选中的顶点
+                unselected_verts = [v for v in bm.verts if not v.select]
+                bmesh.ops.delete(bm, geom=unselected_verts, context='VERTS')
+                bmesh.update_edit_mesh(obj.data)
+                # 设置pivot到选中顶点中心
+                center = find_selected_element_center()
+                
+            # 切换回OBJECT MODE继续处理
+            bpy.ops.object.mode_set(mode='OBJECT')
+            set_object_pivot_location(obj, center)
+
         selected_objs = context.selected_objects
 
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        count=0
+        count = 0
         for obj in selected_objs:
             if obj.type in {'MESH', 'FONT'}:
-            # 关闭投影
+                # 关闭投影
                 if hasattr(obj, "cycles"):
                     obj.cycles.is_shadow_catcher = False
                 if hasattr(obj, "visible_shadow"):
                     obj.visible_shadow = False
-                if hasattr(obj, "show_shadows"):   
+                if hasattr(obj, "show_shadows"):
                     obj.display.show_shadows = False
 
-                obj[CUSTOM_NAME]=DECAL_NAME
+                obj[CUSTOM_NAME] = DECAL_NAME
 
                 # 增加一个displace modifier
                 if DISPLACE_MOD not in obj.modifiers:
                     disp_mod = obj.modifiers.new(name=DISPLACE_MOD, type='DISPLACE')
                     disp_mod.strength = 0.002
-                count+=1
-
+                count += 1
 
         self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
 
