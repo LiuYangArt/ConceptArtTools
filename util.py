@@ -4,7 +4,7 @@ import addon_utils
 
 # constants | 常值
 
-ADDON_NAME = "Conceptart Tools"
+ADDON_NAME = "ConceptArt Tools"
 for mod in addon_utils.modules():
     if mod.bl_info["name"] == ADDON_NAME:
         filepath = mod.__file__
