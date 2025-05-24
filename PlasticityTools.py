@@ -74,12 +74,13 @@ class MakeMeshGroupOperator(bpy.types.Operator):
                 instance_obj.location = offset
                 instance_obj[CUSTOM_NAME] = INSTANCE_NAME
                 instance_objs.append(instance_obj)
-
-                source_coll.hide_viewport = True
+                
+            
         # 复位
         bpy.ops.object.select_all(action="DESELECT")
         bpy.ops.outliner.orphans_purge(do_local_ids=True)
-
+        for source_coll in source_groups:
+                source_coll.hide_viewport = True
         for obj in instance_objs:
             obj.select_set(True)
 
