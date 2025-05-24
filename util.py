@@ -158,6 +158,8 @@ def set_work_mode(type):
     """Set the work mode of the viewport"""
     match type:
         case "MODELING":
+            bpy.context.space_data.overlay.show_cursor = False
+
             bpy.context.space_data.overlay.show_extras = False
             bpy.context.space_data.overlay.show_floor = False
             bpy.context.space_data.overlay.show_axis_x = False

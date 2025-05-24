@@ -2,8 +2,8 @@ import bpy
 from .util import *
 
 class SyncMaterialsToActiveOperator(bpy.types.Operator):
-    bl_idname = "cat.sync_materials_to_active"
-    bl_label = "SyncMaterialsToActive"
+    bl_idname = "cat.sync_materials_from_active"
+    bl_label = "Sync Materials From Active"
     bl_description = "Assign Active Object Material to Selected Objects"
     bl_options = {'UNDO'}
 

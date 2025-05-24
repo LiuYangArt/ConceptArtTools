@@ -62,6 +62,6 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.separator()
         box_column.label(text="Concept Utilities")
         # box_column.separator()
-        box_column.operator("cat.sync_materials_to_active", icon="MATERIAL")
+        box_column.operator("cat.sync_materials_from_active", icon="MATERIAL")
         box_column.operator("cat.set_decal_object", icon="MOD_DISPLACE")
         box_column.prop(parameters, "work_mode", text="Work Mode")
