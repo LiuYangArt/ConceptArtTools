@@ -73,27 +73,53 @@ class SetWorkModeOperator(bpy.types.Operator):
 class SetDecalObjectOperator(bpy.types.Operator):
     bl_idname = "cat.set_decal_object"
     bl_label = "Set Decal Object"
-    bl_description = "Turn off shadow and add displacement offset"  
+    bl_description = "Turn off shadow and add displacement offset, In Edit Mode remove non-selected faces and set pivot to center of selected faces"  
     bl_options = {'UNDO'}
 
     def execute(self, context):
         # 如果在EDIT MODE，处理选中顶点
         if context.mode == 'EDIT_MESH':
-            obj = context.active_object
-            
-            bm = bmesh.from_edit_mesh(obj.data)
-            selected_verts = [v for v in bm.verts if v.select]
-            if selected_verts:
-                # 删除未选中的顶点
-                unselected_verts = [v for v in bm.verts if not v.select]
-                bmesh.ops.delete(bm, geom=unselected_verts, context='VERTS')
-                bmesh.update_edit_mesh(obj.data)
-                # 设置pivot到选中顶点中心
-                center = find_selected_element_center()
-                
-            # 切换回OBJECT MODE继续处理
+            # 支持多个object edit mode
+            edit_objs = [obj for obj in context.selected_objects if obj.mode == 'EDIT']
+            objs_to_process = []
+            centers = {}
+            prev_selection = {}
+            for obj in edit_objs:
+                bm = bmesh.from_edit_mesh(obj.data)
+                selected_verts = [v for v in bm.verts if v.select]
+                if selected_verts:
+                    # 记录当前所有object的顶点选择状态
+                    for other_obj in edit_objs:
+                        if other_obj != obj:
+                            other_bm = bmesh.from_edit_mesh(other_obj.data)
+                            prev_selection[other_obj.name] = [v.select for v in other_bm.verts]
+                            # 取消其它object的所有顶点选择
+                            for v in other_bm.verts:
+                                v.select = False
+                            bmesh.update_edit_mesh(other_obj.data)
+                    # 删除未选中的顶点
+                    unselected_verts = [v for v in bm.verts if not v.select]
+                    bmesh.ops.delete(bm, geom=unselected_verts, context='VERTS')
+                    bmesh.update_edit_mesh(obj.data)
+                    # 记录中心点
+                    center = find_selected_element_center()
+                    centers[obj.name] = center
+                    objs_to_process.append(obj)
+                    # 恢复其它object的顶点选择状态
+                    for other_obj in edit_objs:
+                        if other_obj != obj and other_obj.name in prev_selection:
+                            other_bm = bmesh.from_edit_mesh(other_obj.data)
+                            for v, sel in zip(other_bm.verts, prev_selection[other_obj.name]):
+                                v.select = sel
+                            bmesh.update_edit_mesh(other_obj.data)
+                # 如果没有选中顶点则跳过
+            # 切换所有edit对象回OBJECT MODE
             bpy.ops.object.mode_set(mode='OBJECT')
-            set_object_pivot_location(obj, center)
+            # 设置pivot到选中顶点中心
+            for obj in objs_to_process:
+                center = centers.get(obj.name)
+                if center is not None:
+                    set_object_pivot_location(obj, center)
 
         selected_objs = context.selected_objects
 

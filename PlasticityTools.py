@@ -110,15 +110,23 @@ class MakeMeshGroupOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         # Check if in EDIT mode and has selected vertices
-        if context.mode == "EDIT_MESH":
-            bm = bmesh.from_edit_mesh(obj.data)
-            selected_verts = [v for v in bm.verts if v.select]
-            if selected_verts:
+        # Handle multiple selected objects in EDIT mode
+        edit_mesh_objs = [obj for obj in selected_objs if obj.type == "MESH" and obj.mode == "EDIT"]
+        if edit_mesh_objs:
+            # If any object is in EDIT mode and has selected verts, set pivot to SELECTED and execute
+            has_selected_verts = False
+            for obj in edit_mesh_objs:
+                bm = bmesh.from_edit_mesh(obj.data)
+                if any(v.select for v in bm.verts):
+                    has_selected_verts = True
+                    break
+            if has_selected_verts:
                 self.pivot = "SELECTED"
-                return self.execute(context)
-            else:
+            return self.execute(context)
+        else:
+        # If no selected verts, set all to OBJECT mode and fall through to dialog
+            for obj in edit_mesh_objs:
                 bpy.ops.object.mode_set(mode="OBJECT")
-                # fall through to show dialog
 
         # show dialog
         wm = context.window_manager
