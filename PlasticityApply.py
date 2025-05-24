@@ -7,10 +7,12 @@ import io
 from contextlib import redirect_stdout
 import functools
 from mathutils import Vector
+
 #  全局存储控制台捕获对象
 console_capture = None
 stdout_orig = None
 post_refacet_data = None  # 存储后续操作所需数据
+
 
 class ConsoleCapture(io.StringIO):
     def __init__(self, filename):
@@ -24,28 +26,28 @@ class ConsoleCapture(io.StringIO):
         if f"Refaceting {self.target_filename} to version" in text:
             self.completed = True
 
+
 def run_post_refacet_operations(context, target_filename, operator):
     """在 wm.refacet 完成后运行的自定义操作"""
     global post_refacet_data
     if not post_refacet_data:
         print("无后续操作数据")
         return
-    
-    bpy.ops.object.select_all(action='DESELECT')
+
+    bpy.ops.object.select_all(action="DESELECT")
     count = post_refacet_data["count"]
     refacted_objs = post_refacet_data["refacted_objs"]
     for data in post_refacet_data["source_group_visibility"]:
-        hide_viewport= data["hide_viewport"]
-        hide_select= data["hide_select"]
-
+        hide_viewport = data["hide_viewport"]
+        hide_select = data["hide_select"]
 
     for data in post_refacet_data["mesh_groups"]:
         obj = data["obj"]
         group_mod = data["group_mod"]
         obj_loc_inst = data["obj_loc_inst"]
         obj_loc_target = data["obj_loc_target"]
-        cursor=context.scene.cursor
-        cursor.location=obj_loc_target
+        cursor = context.scene.cursor
+        cursor.location = obj_loc_target
         # # 后续操作（原 is_meshgroup 块）
         source_group = group_mod[MG_SOCKET_GROUP]
         source_objs = source_group.all_objects
@@ -71,10 +73,10 @@ def run_post_refacet_operations(context, target_filename, operator):
         # source_group.visibilty_set=hide_eye
         source_group.hide_select = hide_select
 
-
     # 清理
     post_refacet_data = None
-    operator.report({'INFO'}, f"Apply {count} Mesh Group Finished, Refacet Finished")
+    operator.report({"INFO"}, f"Apply {count} Mesh Group Finished, Refacet Finished")
+
 
 def check_refacet_result(context, operator):
     print("check_refacet_result")
@@ -83,11 +85,11 @@ def check_refacet_result(context, operator):
     if console_capture is None or stdout_orig is None:
         return None  # 停止定时器
 
-    if not hasattr(context, 'scene') or context.scene is None:
+    if not hasattr(context, "scene") or context.scene is None:
         sys.stdout = stdout_orig  # 恢复 stdout
         console_capture = None
         post_refacet_data = None
-        operator.report({'WARNING'}, "上下文失效，wm.refacet 检测中止")
+        operator.report({"WARNING"}, "上下文失效，wm.refacet 检测中止")
         return None
 
     # 调试：记录捕获的输出
@@ -97,7 +99,7 @@ def check_refacet_result(context, operator):
     # 检查是否捕获到完成消息
     if console_capture.completed:
         target_filename = console_capture.target_filename  # 保存文件名
-        
+
         sys.stdout = stdout_orig  # 恢复 stdout
         console_capture = None
         run_post_refacet_operations(context, target_filename, operator)  # 运行后续操作
@@ -111,22 +113,30 @@ def check_refacet_result(context, operator):
         sys.stdout = stdout_orig  # 恢复 stdout
         console_capture = None
         post_refacet_data = None
-        operator.report({'WARNING'}, f"Apply {post_refacet_data['count'] if post_refacet_data else 0} Mesh Group Finished, wm.refacet 超时，未检测到完成输出")
+        operator.report(
+            {"WARNING"},
+            f"Apply {post_refacet_data['count'] if post_refacet_data else 0} Mesh Group Finished, wm.refacet 超时，未检测到完成输出",
+        )
         return None
 
     return 0.1  # 每 0.1 秒检查一次
 
+
 class ApplyMeshGroupOperator(bpy.types.Operator):
     bl_idname = "cat.apply_meshgroup"
     bl_label = "Apply Mesh Group"
-    bl_options = {'UNDO'}
+    bl_options = {"UNDO"}
     bl_description = "Turn MeshGroup to Meshes"
+
     @classmethod
     def poll(cls, context):
-        return all([
-            context.mode == 'OBJECT',
-            len(context.selected_objects),
-        ])
+        return all(
+            [
+                context.mode == "OBJECT",
+                len(context.selected_objects),
+            ]
+        )
+
     def execute(self, context):
         global console_capture, stdout_orig, post_refacet_data
         selected_objs = context.selected_objects
@@ -151,15 +161,17 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                     obj_loc_target = WORLD_ORIGIN - offset_raw
 
                     source_group = group_mod[MG_SOCKET_GROUP]
-                    source_group_visibility.append({
-                        "hide_viewport": source_group.hide_viewport,
-                        "hide_select": source_group.hide_select,
-                    })
+                    source_group_visibility.append(
+                        {
+                            "hide_viewport": source_group.hide_viewport,
+                            "hide_select": source_group.hide_select,
+                        }
+                    )
                     source_group.hide_viewport = False
                     source_group.hide_select = False
 
                     source_objs = source_group.all_objects
-                    bpy.ops.object.select_all(action='DESELECT')
+                    bpy.ops.object.select_all(action="DESELECT")
 
                     # 收集需要 refacet 的对象
                     for source_obj in source_objs:
@@ -168,18 +180,20 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                             refacet_objs.append(source_obj)
 
                     # 存储 MeshGroup 数据
-                    mesh_groups.append({
-                        "obj": obj,
-                        "group_mod": group_mod,
-                        "obj_loc_inst": obj_loc_inst,
-                        "obj_loc_target": obj_loc_target
-                    })
+                    mesh_groups.append(
+                        {
+                            "obj": obj,
+                            "group_mod": group_mod,
+                            "obj_loc_inst": obj_loc_inst,
+                            "obj_loc_target": obj_loc_target,
+                        }
+                    )
 
         # 检查是否需要 refacet
         if refacet_objs:
             try:
                 # 设置为 NGON 模式并调用 refacet
-                bpy.context.scene.prop_plasticity_facet_tri_or_ngon = 'NGON'
+                bpy.context.scene.prop_plasticity_facet_tri_or_ngon = "NGON"
                 bpy.ops.mesh.auto_mark_edges()
 
                 # 获取目标文件名（单一文件名）
@@ -189,40 +203,45 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                         target_filename = obj["plasticity_filename"]
                         break
                 if not target_filename:
-                    self.report({'ERROR'}, "未找到 plasticity_filename")
-                    return {'CANCELLED'}
+                    self.report({"ERROR"}, "未找到 plasticity_filename")
+                    return {"CANCELLED"}
 
                 # 检查 poll 条件
                 if not bpy.ops.wm.refacet.poll():
-                    self.report({'ERROR'}, "无法运行 wm.refacet：未满足条件（未连接 plasticity_client 或未选中带有 plasticity_id 的对象）")
-                    return {'CANCELLED'}
+                    self.report(
+                        {"ERROR"},
+                        "无法运行 wm.refacet：未满足条件（未连接 plasticity_client 或未选中带有 plasticity_id 的对象）",
+                    )
+                    return {"CANCELLED"}
 
                 # 设置控制台捕获
                 console_capture = ConsoleCapture(target_filename)
                 stdout_orig = sys.stdout
                 sys.stdout = console_capture
-                self.report({'INFO'}, f"目标文件名: {target_filename}")
+                self.report({"INFO"}, f"目标文件名: {target_filename}")
 
                 # 调用 wm.refacet
                 result = bpy.ops.wm.refacet()
-                if result != {'FINISHED'}:
+                if result != {"FINISHED"}:
                     sys.stdout = stdout_orig
                     console_capture = None
-                    self.report({'ERROR'}, "wm.refacet 执行失败")
-                    return {'CANCELLED'}
+                    self.report({"ERROR"}, "wm.refacet 执行失败")
+                    return {"CANCELLED"}
 
                 # 存储后续操作数据
                 post_refacet_data = {
                     "count": count,
                     "refacted_objs": refacet_objs,
                     "mesh_groups": mesh_groups,
-                    "source_group_visibility" : source_group_visibility
+                    "source_group_visibility": source_group_visibility,
                 }
                 plasticity_bridge = True
 
                 # 注册定时器
-                bpy.app.timers.register(functools.partial(check_refacet_result, context, self))
-                return {'RUNNING_MODAL'}  # 保持 Operator 运行直到定时器完成
+                bpy.app.timers.register(
+                    functools.partial(check_refacet_result, context, self)
+                )
+                return {"RUNNING_MODAL"}  # 保持 Operator 运行直到定时器完成
 
             except Exception as e:
                 sys.stdout = stdout_orig if stdout_orig else sys.__stdout__
@@ -232,9 +251,12 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
         # 若无需 refacet，直接执行后续操作
         if not plasticity_bridge and mesh_groups:
             run_post_refacet_operations(context, None, self)
-            self.report({'INFO'}, f"Apply {count} Mesh Group Finished, Plasticity Bridge not connected, Refacet Skipped")
-            return {'FINISHED'}
+            self.report(
+                {"INFO"},
+                f"Apply {count} Mesh Group Finished, Plasticity Bridge not connected, Refacet Skipped",
+            )
+            return {"FINISHED"}
 
         # 若无 MeshGroup，直接返回
-        self.report({'INFO'}, f"No Mesh Groups found to apply")
-        return {'FINISHED'}
+        self.report({"INFO"}, f"No Mesh Groups found to apply")
+        return {"FINISHED"}

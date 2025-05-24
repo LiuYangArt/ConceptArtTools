@@ -12,21 +12,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-
 bl_info = {
-    "name": "Conceptart Tools",
+    "name": "ConceptArt Tools",
     "author": "LiuYang",
     "description": "",
     "blender": (4, 2, 0),
     "version": (0, 0, 1),
-    "location": "",
-    "warning": "",
+    "location": "N Panel>CAT",
+    "warning": "Need Plasticity Bridge Connection to get all features work",
     "category": "Generic",
 }
 
 import bpy
 from . import auto_load
-#传递UI参数
+
+# 传递UI参数
 from bpy.props import PointerProperty
 from .UI import UIParams
 
@@ -35,7 +35,7 @@ auto_load.init()
 
 def register():
     auto_load.register()
-    #注册UI参数
+    # 注册UI参数
     bpy.types.Scene.cat_params = PointerProperty(type=UIParams)
 
 
