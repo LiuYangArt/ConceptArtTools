@@ -44,7 +44,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
             import_node_group(preset_path, GROUP_NODE)
 
             for source_coll in source_groups:
-                print(f"make instance for {source_coll.name} ")
+                print(f"create instance for {source_coll.name} ")
                 coll_objs = source_coll.all_objects
 
                 if self.pivot == "CENTER":
@@ -298,10 +298,11 @@ class AddCustomAxisOperator(bpy.types.Operator):
             if child.type == "EMPTY":
                 if child[CUSTOM_NAME] == PIVOT_NAME:
                     has_axis = True
+                    axis_obj = child
                     break
         if has_axis is True:
             bpy.ops.object.select_all(action="DESELECT")
-            child.select_set(True)
+            axis_obj.select_set(True)
             self.report({"INFO"}, "Object already has a Custom Axis")
             return {"CANCELLED"}
 

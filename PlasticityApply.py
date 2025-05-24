@@ -34,27 +34,40 @@ def run_post_refacet_operations(context, target_filename, operator):
         print("无后续操作数据")
         return
 
+
+
     bpy.ops.object.select_all(action="DESELECT")
     count = post_refacet_data["count"]
     refacted_objs = post_refacet_data["refacted_objs"]
-    for data in post_refacet_data["source_group_visibility"]:
-        hide_viewport = data["hide_viewport"]
-        hide_select = data["hide_select"]
+    applied_objs=[]
 
     for data in post_refacet_data["mesh_groups"]:
+        bpy.ops.object.select_all(action="DESELECT")
         obj = data["obj"]
         group_mod = data["group_mod"]
         obj_loc_inst = data["obj_loc_inst"]
         obj_loc_target = data["obj_loc_target"]
-        cursor = context.scene.cursor
-        cursor.location = obj_loc_target
-        # # 后续操作（原 is_meshgroup 块）
-        source_group = group_mod[MG_SOCKET_GROUP]
-        source_objs = source_group.all_objects
+        has_modifiers=False
+        has_axis=False
+        print(f"{obj.name} 正在处理")
 
         new_coll_name = obj.name
         new_coll = bpy.data.collections.new(new_coll_name)
         obj.users_collection[0].children.link(new_coll)
+        if len(obj.modifiers)>1:
+            has_modifiers=True
+        for child in obj.children:
+            if child.type == "EMPTY":
+                if child[CUSTOM_NAME] == PIVOT_NAME:
+                    has_axis = True
+                    axis_obj = child
+                    axis_world_location=obj.location.copy()+axis_obj.location.copy()
+                    break
+
+        # 后续操作（原 is_meshgroup 块）
+        source_coll = group_mod[MG_SOCKET_GROUP]
+        source_objs = source_coll.all_objects
+
         for source_obj in source_objs:
             # 复制对象
             new_obj = source_obj.copy()
@@ -66,13 +79,37 @@ def run_post_refacet_operations(context, target_filename, operator):
             new_coll.objects.link(new_obj)
             set_object_pivot_location(new_obj, obj_loc_target)
             new_obj.location = obj_loc_inst
-            new_obj.select_set(True)
+            if has_modifiers:
+                for modifier in obj.modifiers:
+                    if modifier.name != GROUP_MOD:
+                        new_modifier = new_obj.modifiers.new(modifier.name, modifier.type)
+                        for attr in dir(modifier):
+                            if not attr.startswith("__") and attr not in ['name', 'type']:
+                                try:
+                                    setattr(new_modifier, attr, getattr(modifier, attr))
+                                except AttributeError:
+                                    pass
+            if has_axis:
+                # 从原有 collection 移除 axis_obj
+                for coll in axis_obj.users_collection:
+                    coll.objects.unlink(axis_obj)
+                # 添加到 new_coll
+                new_coll.objects.link(axis_obj)
+                axis_obj.location = axis_world_location
+                applied_objs.append(axis_obj)
+                
+            applied_objs.append(new_obj)
         bpy.data.objects.remove(obj)
 
-        source_group.hide_viewport = hide_viewport
-        # source_group.visibilty_set=hide_eye
-        source_group.hide_select = hide_select
-
+    for data in post_refacet_data["source_group_visibility"]:
+        source_coll = data["source_group"]
+        hide_viewport = data["hide_viewport"]
+        hide_select = data["hide_select"]
+        source_coll.hide_viewport = hide_viewport
+        source_coll.hide_select = hide_select
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in applied_objs:
+        obj.select_set(True)
     # 清理
     post_refacet_data = None
     operator.report({"INFO"}, f"Apply {count} Mesh Group Finished, Refacet Finished")
@@ -161,12 +198,15 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
                     obj_loc_target = WORLD_ORIGIN - offset_raw
 
                     source_group = group_mod[MG_SOCKET_GROUP]
-                    source_group_visibility.append(
-                        {
-                            "hide_viewport": source_group.hide_viewport,
-                            "hide_select": source_group.hide_select,
-                        }
-                    )
+                    # 检查是否已添加该 source_group
+                    if not any(d["source_group"] == source_group for d in source_group_visibility):
+                        source_group_visibility.append(
+                            {
+                                "source_group": source_group,
+                                "hide_viewport": source_group.hide_viewport,
+                                "hide_select": source_group.hide_select,
+                            }
+                        )
                     source_group.hide_viewport = False
                     source_group.hide_select = False
 
@@ -191,6 +231,10 @@ class ApplyMeshGroupOperator(bpy.types.Operator):
 
         # 检查是否需要 refacet
         if refacet_objs:
+            bpy.ops.object.select_all(action="DESELECT")
+            for obj in refacet_objs:
+                obj.select_set(True)
+                
             try:
                 # 设置为 NGON 模式并调用 refacet
                 bpy.context.scene.prop_plasticity_facet_tri_or_ngon = "NGON"

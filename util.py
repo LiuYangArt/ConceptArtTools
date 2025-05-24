@@ -63,10 +63,8 @@ def add_meshgroup_modifier(mesh, target_group=None, offset=Vector((0, 0, 0))):
     """添加Geometry Nodes MeshGroup Modifier"""
 
     check_modifier = False
-    # print(mesh.location)
+    offset = Vector(offset)
     offset = WORLD_ORIGIN - offset
-
-    print("offset", offset)
 
     for modifier in mesh.modifiers:
         if modifier.name == GROUP_MOD:
