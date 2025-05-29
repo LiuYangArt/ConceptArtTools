@@ -27,6 +27,7 @@ WORLD_ORIGIN = Vector((0, 0, 0))
 MG_SOCKET_GROUP = "Socket_2"
 MG_SOCKET_REALIZE = "Socket_3"
 MG_SOCKET_OFFSET = "Socket_7"
+DECAL_OFFSET = 0.008
 
 
 # functions
@@ -158,6 +159,16 @@ def set_work_mode(type):
     """Set the work mode of the viewport"""
     match type:
         case "MODELING":
+            for collection in bpy.data.collections:
+                if collection.name.startswith("_"):
+                     collection.hide_select=True
+                if collection.name=="_localfog":
+                    collection.hide_viewport=True
+                if collection.name=="Plasticity":
+                    collection.hide_viewport=False
+                    collection.hide_select=False
+            bpy.context.space_data.overlay.show_overlays = True
+
             bpy.context.space_data.overlay.show_cursor = False
 
             bpy.context.space_data.overlay.show_extras = False
@@ -184,6 +195,21 @@ def set_work_mode(type):
             bpy.context.space_data.show_object_select_empty = True
 
         case "LIGHTING":
+            no_select_collections=[]
+            for collection in bpy.data.collections:
+                if collection.name==("_env"):
+                    collection.hide_select=False
+                    collection.hide_viewport=False
+                if collection.name.startswith("_localfog"):
+                     collection.hide_select=True
+                     collection.hide_viewport=False
+                # if collection.name=="Plasticity" or "Decal" in collection.name:
+                #     no_select_collections.append(collection)
+            for collection in no_select_collections:
+                collection.hide_select=True
+            bpy.context.space_data.overlay.show_overlays = True
+
+            bpy.context.space_data.overlay.show_cursor = False
             bpy.context.space_data.overlay.show_extras = True
             bpy.context.space_data.overlay.show_floor = False
             bpy.context.space_data.overlay.show_axis_x = False
@@ -207,7 +233,49 @@ def set_work_mode(type):
             bpy.context.space_data.show_object_select_lattice = False
             bpy.context.space_data.show_object_select_empty = False
 
+        case "LOCALFOG":
+            no_select_collections=[]
+            for collection in bpy.data.collections:
+                if collection.name.startswith("_localfog"):
+                     collection.hide_select=False
+                     collection.hide_viewport=False
+                if collection.name=="Plasticity":
+                    no_select_collections.append(collection)
+            for collection in no_select_collections:
+                collection.hide_select=True
+            bpy.context.space_data.overlay.show_overlays = True
+
+            bpy.context.space_data.overlay.show_extras = False
+            bpy.context.space_data.overlay.show_floor = False
+            bpy.context.space_data.overlay.show_axis_x = False
+            bpy.context.space_data.overlay.show_axis_y = False
+            bpy.context.space_data.overlay.show_axis_z = False
+
+            bpy.context.space_data.show_object_select_light_probe = True
+            bpy.context.space_data.show_object_select_camera = False
+            bpy.context.space_data.show_object_select_light = False
+
+            bpy.context.space_data.show_object_select_volume = True
+            bpy.context.space_data.show_object_select_mesh = True
+            bpy.context.space_data.show_object_select_curve = False
+            bpy.context.space_data.show_object_select_surf = False
+            bpy.context.space_data.show_object_select_meta = False
+            bpy.context.space_data.show_object_select_font = False
+            bpy.context.space_data.show_object_select_curves = False
+            bpy.context.space_data.show_object_select_pointcloud = False
+            bpy.context.space_data.show_object_select_grease_pencil = False
+            bpy.context.space_data.show_object_select_armature = False
+            bpy.context.space_data.show_object_select_lattice = False
+            bpy.context.space_data.show_object_select_empty = False
+
         case "BLENDER DEFAULT":
+
+            for collection in bpy.data.collections:
+                if collection.name.startswith("_"):
+                     collection.hide_select=False
+
+            bpy.context.space_data.overlay.show_overlays = True
+
             bpy.context.space_data.overlay.show_extras = True
             bpy.context.space_data.overlay.show_floor = True
             bpy.context.space_data.overlay.show_axis_x = True

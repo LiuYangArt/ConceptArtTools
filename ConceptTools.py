@@ -65,6 +65,8 @@ class SetWorkModeOperator(bpy.types.Operator):
             set_work_mode("MODELING")
         elif work_mode == 'LIGHTING':
             set_work_mode("LIGHTING")
+        elif work_mode == 'LOCALFOG':
+            set_work_mode("LOCALFOG")
 
         self.report({'INFO'}, f"Set work mode to {work_mode}")
 
@@ -140,7 +142,11 @@ class SetDecalObjectOperator(bpy.types.Operator):
                 # 增加一个displace modifier
                 if DISPLACE_MOD not in obj.modifiers:
                     disp_mod = obj.modifiers.new(name=DISPLACE_MOD, type='DISPLACE')
-                    disp_mod.strength = 0.002
+                elif obj.modifiers[DISPLACE_MOD]:
+                    disp_mod=obj.modifiers[DISPLACE_MOD]
+                if disp_mod:
+                    disp_mod.strength = DECAL_OFFSET
+
                 count += 1
 
         self.report({'INFO'}, f"Set {count} object(s) as Decal Object")

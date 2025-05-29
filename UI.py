@@ -24,6 +24,7 @@ class UIParams(PropertyGroup):
             ("DEFAULT", "Blender Default", ""),
             ("MODELING", "Modeling Mode", ""),
             ("LIGHTING", "Lighting Mode", ""),
+            ("LOCALFOG", "LocalFog Mode", ""),
         ],
         default="DEFAULT",
         # 执行function， 运行对应的operator
@@ -65,3 +66,10 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator("cat.sync_materials_from_active", icon="MATERIAL")
         box_column.operator("cat.set_decal_object", icon="MOD_DISPLACE")
         box_column.prop(parameters, "work_mode", text="Work Mode")
+
+        box_column.separator()
+        box_column.label(text="Library Tools")
+        # box_column.separator()
+        box_column.operator("cat.show_missing_assets", icon="LIBRARY_DATA_BROKEN")
+        box_column.operator("cat.find_asset_users", icon="LIBRARY_DATA_BROKEN")
+        

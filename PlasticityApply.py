@@ -161,7 +161,7 @@ def check_refacet_result(context, operator):
 
 class ApplyMeshGroupOperator(bpy.types.Operator):
     bl_idname = "cat.apply_meshgroup"
-    bl_label = "Apply Mesh Group"
+    bl_label = "Apply MeshGroup"
     bl_options = {"UNDO"}
     bl_description = "Turn MeshGroup to Meshes"
 

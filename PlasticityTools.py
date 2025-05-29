@@ -135,7 +135,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
 
 class RealizeMeshGroupOperator(bpy.types.Operator):
     bl_idname = "cat.realize_meshgroup"
-    bl_label = "RealizeMeshGroup"
+    bl_label = "Realize MeshGroup"
     bl_options = {"UNDO"}
     bl_description = "Allow use with other modifiers, may lower performance if the group is too large"
 
