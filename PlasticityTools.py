@@ -10,7 +10,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
     bl_description = (
         "Select one object and it will convert its' collection to a mesh-group instance. If In Edit Mode, Pivot will be set to center ofselected verts"
     )
-    bl_options = {"UNDO"}
+    bl_options = {"REGISTER", "UNDO"}
 
     # UI Popup
     pivot: bpy.props.EnumProperty(
@@ -27,6 +27,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
             ("CURSOR", "3D Cursor", "Set pivot to 3D cursor location", 4),
         ],
     )
+    realize: bpy.props.BoolProperty(name="Realize", description="Realize MeshGroup Instances, to use with Modifiers", default=False)
 
     def execute(self, context):
 
@@ -68,10 +69,11 @@ class MakeMeshGroupOperator(bpy.types.Operator):
                     INST_PREFIX + source_coll.name, temp_mesh
                 )
                 scene_coll.objects.link(instance_obj)
-
-                add_meshgroup_modifier(
+                
+                gn_modifier=add_meshgroup_modifier(
                     instance_obj, target_group=source_coll, offset=offset
                 )
+                gn_modifier[MG_SOCKET_REALIZE]=self.realize
 
                 instance_obj.location = offset
                 instance_obj[CUSTOM_NAME] = INSTANCE_NAME

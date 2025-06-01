@@ -84,6 +84,8 @@ def add_meshgroup_modifier(mesh, target_group=None, offset=Vector((0, 0, 0))):
     # set offset
     geo_node_modifier[MG_SOCKET_OFFSET] = offset
 
+    return geo_node_modifier
+
 
 def add_mirror_modifier(mesh, axis=0):
     """添加DataTransfer Modifier传递顶点色"""
