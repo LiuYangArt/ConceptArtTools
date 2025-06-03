@@ -86,5 +86,5 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.prop(parameters, "ueio_json_path", text="Path")
         box_column.operator("cat.import_unreal_scene", icon="IMPORT")
         box_column.operator("cat.export_unreal_scene_json", icon="EXPORT")
-        box_column.operator("cat.make_ue_actor_instance")
+        # box_column.operator("cat.make_ue_actor_instance")
         

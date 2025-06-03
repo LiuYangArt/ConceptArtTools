@@ -122,7 +122,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         # 导入后得到新对象
         ueio_objs = [obj for obj in bpy.data.objects if obj not in existing_objs]
         move_objs_to_collection(ueio_objs, level_path_coll.name)
-
+        
         # 检查Blender单位设置
         if bpy.context.scene.unit_settings.length_unit != "CENTIMETERS":
             self.report({"WARNING"}, "Blender单位不是厘米，可能会导致比例不一致")
@@ -132,6 +132,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         for obj in ueio_objs:
             if obj.type == "EMPTY" and "LevelInstanceEditorInstanceActor" in obj.name:
                 level_instance_objs.append(obj)
+
         for actor in scene_data["actors"]:
             # print(f"处理 {actor['name']},type {actor['actor_type']}")
             obj = bpy.data.objects.get(actor["name"])
@@ -148,10 +149,13 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
                 if obj[ACTORTYPE] in COLLINST_TYPES:
                     is_coll_inst = True
                 elif obj[ACTORTYPE] == "LevelInstance":
+                    #find levelinstance obj
                     for inst in level_instance_objs:
                         if obj.location == inst.location:
                             inst.parent = obj
                             inst.location = (0, 0, 0)
+                            inst.rotation_euler = (0, 0, 0)
+                            inst.scale = (1, 1, 1)
                             is_coll_inst = True
                 elif "Light" in obj[ACTORTYPE]:
                     is_light = True
@@ -164,21 +168,66 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
                     actor_obj = convert_to_actor_instance(obj)
                     vaild_actors.append(actor_obj)
                 elif is_light:
-                    vaild_actors.append(obj)
+                    # vaild_actors.append(obj)
                     obj.hide_select = True
+
+        
         for obj in ueio_objs:
             if obj.type == "EMPTY" and len(obj.children) == 0:
                 obj.hide_viewport = True
                 obj.hide_select = True
 
-                # 应用变换
-                # bpy.context.view_layer.objects.active = obj
-                # obj.select_set(True)
-                # bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-                # obj.select_set(False)
-
         self.report({"INFO"}, f"成功导入Unreal场景: {os.path.basename(json_path)}")
         return {"FINISHED"}
+
+    def invoke(self, context, event):
+        params = context.scene.cat_params
+        json_path = params.ueio_json_path
+
+        # 检查json_path是否存在
+        if not os.path.exists(json_path):
+            self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
+            return {"CANCELLED"}
+
+        # 解析JSON文件
+        with open(json_path, "r") as f:
+            scene_data = json.load(f)
+
+        # 获取main_level和level_path
+        main_level = scene_data.get("main_level", None)
+        level_path = scene_data.get("level_path", None)
+        main_level_name = get_name_from_ue_path(main_level)
+        if main_level == level_path:
+            level_path_name = MAINLEVEL
+        else:
+            level_path_name = get_name_from_ue_path(level_path)
+
+        # 检查UECOLL、main_level_coll、level_path_coll是否存在
+        ueio_coll = bpy.data.collections.get(UECOLL)
+        main_level_coll = bpy.data.collections.get(main_level_name)
+        level_path_coll = bpy.data.collections.get(level_path_name)
+
+        # 如果都存在，说明资源已导入，先清除
+        if ueio_coll and main_level_coll and level_path_coll:
+            # 先移除level_path_coll下的所有对象
+            objs_to_remove = [obj for obj in level_path_coll.objects]
+            for obj in objs_to_remove:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            # 再移除collection的嵌套关系
+            if level_path_coll.name in [c.name for c in main_level_coll.children]:
+                main_level_coll.children.unlink(level_path_coll)
+                
+            if main_level_coll.name in [c.name for c in ueio_coll.children]:
+                ueio_coll.children.unlink(main_level_coll)
+            # 移除collection本身
+            bpy.data.collections.remove(level_path_coll)
+            bpy.data.collections.remove(main_level_coll)
+            # 如果UECOLL没有其他子collection，也移除
+            if not ueio_coll.children:
+                bpy.data.collections.remove(ueio_coll)
+            bpy.ops.outliner.orphans_purge(do_local_ids=True)
+
+        return self.execute(context)
 
 
 def get_all_children(obj):
@@ -225,7 +274,7 @@ def convert_to_actor_instance(actor_obj):
     scene_coll.children.link(new_coll)
     for o in target_objs:
         new_coll.objects.link(o)
-        o.location = o.location
+        # o.location = o.location
 
     # 删除原对象
     bpy.data.objects.remove(actor_obj)
@@ -291,14 +340,6 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
             is_mainlevel = True
             print(f"{main_level_coll.name} is mainlevel")
 
-        # # 如果只有一个子collection，默认是level_asset_coll
-        # if not level_asset_coll and ueio_coll.children:
-        #     level_asset_coll = list(ueio_coll.children)[0]
-
-        # if not level_asset_coll:
-        #     self.report({"ERROR"}, "未找到Level Asset Collection")
-        #     return {"CANCELLED"}
-
         # 获取json中的main_level和level_path
         main_level_path = scene_data.get("main_level", None)
         level_path = scene_data.get("level_path", None)
@@ -316,8 +357,69 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
             return {"CANCELLED"}
 
         # 获取level_asset_coll下的所有对象
-        level_actor_objs = [obj for obj in level_asset_coll.objects]
-
+        if level_asset_coll is None:
+            self.report({'ERROR'}, "未找到Level Asset Collection")
+            return {"CANCELLED"}
+        level_actor_objs = [obj for obj in level_asset_coll.all_objects]
+        # 找出所有有 fname 的 object，且在 json 中没有对应的
+        existing_actor_keys = set(
+            (str(a.get("name")), str(a.get("actor_type")), str(a.get("fname")), str(a.get("fguid")))
+            for a in scene_data.get("actors", [])
+        )
+        for obj in level_actor_objs:
+            fname = obj.get(FNAME, None)
+            actortype = obj.get(ACTORTYPE, "")
+            guid = str(obj.get(GUID, ""))
+            if fname and actortype in ["StaticMesh", "Blueprint", "LevelInstance"]:
+                key = (obj.name, str(obj.get(ACTORTYPE, "")), str(fname), guid)
+                if key not in existing_actor_keys:
+                    # 添加到json
+                    loc = obj.location * 100
+                    rot = obj.rotation_euler
+                    rot_deg = [((r * 180.0 / 3.141592653589793) % 360) for r in rot]
+                    scale = obj.scale
+                    # 检查object name中的.，替换为_
+                    safe_name = obj.name.replace('.', '_')
+                    if obj.name != safe_name:
+                        # 检查是否已存在同名对象，避免重名
+                        if safe_name not in bpy.data.objects:
+                            obj.name = safe_name
+                        else:
+                            # 若已存在，添加后缀避免冲突
+                            idx = 1
+                            new_name = f"{safe_name}_{idx}"
+                            while new_name in bpy.data.objects:
+                                idx += 1
+                                new_name = f"{safe_name}_{idx}"
+                            obj.name = new_name
+                        safe_name = obj.name
+                    print(safe_name, obj.name)
+                    new_actor = {
+                        "name": safe_name,
+                        "actor_type": obj.get(ACTORTYPE, ""),
+                        "fname": fname,
+                        "fguid": guid,
+                        "class": obj.get(ACTORCLASS, ""),
+                        "transform": {
+                            "location": {
+                                "x": loc.x,
+                                "y": -loc.y,
+                                "z": loc.z
+                            },
+                            "rotation": {
+                                "x": rot_deg[0],
+                                "y": -rot_deg[1],
+                                "z": -rot_deg[2]
+                            },
+                            "scale": {
+                                "x": scale.x,
+                                "y": scale.y,
+                                "z": scale.z
+                            }
+                        },
+                        "Blender": "NewActor"
+                    }
+                    scene_data["actors"].append(new_actor)
         # 遍历json中的actors，匹配Blender对象
         for actor in scene_data.get("actors", []):
             actor_name = actor.get("name")
@@ -352,7 +454,7 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
                         "rotation": {
                             "x": rot_deg[0],
                             "y": -rot_deg[1],
-                            "z": rot_deg[2]
+                            "z": -rot_deg[2]
                         },
                         "scale": {
                             "x": scale.x,
@@ -370,19 +472,19 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class CAT_OT_MakeUEActorInstance(bpy.types.Operator):
-    """Collapses selected meshes into one collection and spawns its instance here."""  # NOQA
+# class CAT_OT_MakeUEActorInstance(bpy.types.Operator):
+#     """Collapses selected meshes into one collection and spawns its instance here."""  # NOQA
 
-    bl_idname = "cat.make_ue_actor_instance"
-    bl_label = "这是一个测试用的operator"
-    bl_options = {"UNDO"}
+#     bl_idname = "cat.make_ue_actor_instance"
+#     bl_label = "这是一个测试用的operator"
+#     bl_options = {"UNDO"}
 
-    def execute(self, context):
-        selected_objs = context.selected_objects
-        for obj in selected_objs:
-            convert_to_actor_instance(obj)
+#     def execute(self, context):
+#         selected_objs = context.selected_objects
+#         for obj in selected_objs:
+#             convert_to_actor_instance(obj)
 
-        # clean up temp datas
-        bpy.ops.outliner.orphans_purge(do_local_ids=True)
+#         # clean up temp datas
+#         bpy.ops.outliner.orphans_purge(do_local_ids=True)
 
-        return {"FINISHED"}
+#         return {"FINISHED"}
