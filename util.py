@@ -28,7 +28,7 @@ MG_SOCKET_GROUP = "Socket_2"
 MG_SOCKET_REALIZE = "Socket_3"
 MG_SOCKET_OFFSET = "Socket_7"
 DECAL_OFFSET = 0.008
-
+DEFAULT_IO_TEMP_DIR="C:\\ue5temp\\"
 
 # functions
 def import_node_group(file_path, node_name) -> bpy.types.NodeGroup:

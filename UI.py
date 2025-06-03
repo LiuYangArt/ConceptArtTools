@@ -8,7 +8,7 @@ from bpy.props import (
     StringProperty,
 )
 from bpy.types import PropertyGroup
-
+from .util import DEFAULT_IO_TEMP_DIR
 
 def run_set_work_mode_op(self, context):
     """当ui参数改变时，运行对应的operator"""
@@ -31,6 +31,14 @@ class UIParams(PropertyGroup):
         update=run_set_work_mode_op,
     )
 
+    ueio_json_path: StringProperty(
+        name="UEIO JSON Path",
+        description="UEIO JSON文件路径",
+        default=DEFAULT_IO_TEMP_DIR + "*.json",
+        maxlen=1024,
+        subtype="FILE_PATH",
+        options={'HIDDEN'}
+    )
 
 class InstancedCollectionToolPanel(bpy.types.Panel):
     bl_idname = "CAT_PT_tool_panel"
@@ -72,4 +80,11 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         # box_column.separator()
         box_column.operator("cat.show_missing_assets", icon="LIBRARY_DATA_BROKEN")
         box_column.operator("cat.find_asset_users", icon="LIBRARY_DATA_BROKEN")
+        
+        box_column.separator()
+        box_column.label(text="Unreal IO")
+        box_column.prop(parameters, "ueio_json_path", text="Path")
+        box_column.operator("cat.import_unreal_scene", icon="IMPORT")
+        box_column.operator("cat.export_unreal_scene_json", icon="EXPORT")
+        box_column.operator("cat.make_ue_actor_instance")
         
