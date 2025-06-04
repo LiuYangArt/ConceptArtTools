@@ -17,6 +17,9 @@ COLL_MAIN = "Main"
 COLL_LEVEL = "Level"
 UECOLL_COLOR = "COLOR_06"
 COLLINST_TYPES = ["Blueprint"]
+BL_FLAG= "Blender"
+BL_NEW="NewActor"
+BL_DEL="Removed"
 
 
 def make_collection(collection_name: str, type:str="") -> bpy.types.Collection:
@@ -58,7 +61,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
 
     def execute(self, context):
         params = context.scene.cat_params
-        json_path = params.ueio_json_path
+        json_path = params.ubio_json_path
 
         # 检查json_path是否存在
         if not os.path.exists(json_path):
@@ -91,16 +94,16 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         
 
         # make collections
-        ueio_coll = make_collection(UECOLL,type=COLL_ROOT)
+        ubio_coll = make_collection(UECOLL,type=COLL_ROOT)
         main_level_coll = make_collection(main_level_name,type=COLL_MAIN)
         level_path_coll = make_collection(level_path_name,type=COLL_LEVEL)
 
-        ueio_coll.color_tag = UECOLL_COLOR
+        ubio_coll.color_tag = UECOLL_COLOR
 
 
-        # 设置从属关系: ueio_coll > main_level_coll > level_path_coll
-        if main_level_coll.name not in [c.name for c in ueio_coll.children]:
-            ueio_coll.children.link(main_level_coll)
+        # 设置从属关系: ubio_coll > main_level_coll > level_path_coll
+        if main_level_coll.name not in [c.name for c in ubio_coll.children]:
+            ubio_coll.children.link(main_level_coll)
         if level_path_coll.name not in [c.name for c in main_level_coll.children]:
             main_level_coll.children.link(level_path_coll)
         scene_coll = bpy.context.scene.collection
@@ -120,8 +123,8 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         )
 
         # 导入后得到新对象
-        ueio_objs = [obj for obj in bpy.data.objects if obj not in existing_objs]
-        move_objs_to_collection(ueio_objs, level_path_coll.name)
+        ubio_objs = [obj for obj in bpy.data.objects if obj not in existing_objs]
+        move_objs_to_collection(ubio_objs, level_path_coll.name)
         
         # 检查Blender单位设置
         if bpy.context.scene.unit_settings.length_unit != "CENTIMETERS":
@@ -129,7 +132,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         vaild_actors = []
         # 处理每个actor
         level_instance_objs = []
-        for obj in ueio_objs:
+        for obj in ubio_objs:
             if obj.type == "EMPTY" and "LevelInstanceEditorInstanceActor" in obj.name:
                 level_instance_objs.append(obj)
 
@@ -163,8 +166,8 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
                     continue
 
                 if is_coll_inst:
-                    if obj in ueio_objs:
-                        ueio_objs.remove(obj)
+                    if obj in ubio_objs:
+                        ubio_objs.remove(obj)
                     actor_obj = convert_to_actor_instance(obj)
                     vaild_actors.append(actor_obj)
                 elif is_light:
@@ -172,7 +175,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
                     obj.hide_select = True
 
         
-        for obj in ueio_objs:
+        for obj in ubio_objs:
             if obj.type == "EMPTY" and len(obj.children) == 0:
                 obj.hide_viewport = True
                 obj.hide_select = True
@@ -182,7 +185,7 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
 
     def invoke(self, context, event):
         params = context.scene.cat_params
-        json_path = params.ueio_json_path
+        json_path = params.ubio_json_path
 
         # 检查json_path是否存在
         if not os.path.exists(json_path):
@@ -203,12 +206,12 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
             level_path_name = get_name_from_ue_path(level_path)
 
         # 检查UECOLL、main_level_coll、level_path_coll是否存在
-        ueio_coll = bpy.data.collections.get(UECOLL)
+        ubio_coll = bpy.data.collections.get(UECOLL)
         main_level_coll = bpy.data.collections.get(main_level_name)
         level_path_coll = bpy.data.collections.get(level_path_name)
 
         # 如果都存在，说明资源已导入，先清除
-        if ueio_coll and main_level_coll and level_path_coll:
+        if ubio_coll and main_level_coll and level_path_coll:
             # 先移除level_path_coll下的所有对象
             objs_to_remove = [obj for obj in level_path_coll.objects]
             for obj in objs_to_remove:
@@ -217,14 +220,14 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
             if level_path_coll.name in [c.name for c in main_level_coll.children]:
                 main_level_coll.children.unlink(level_path_coll)
                 
-            if main_level_coll.name in [c.name for c in ueio_coll.children]:
-                ueio_coll.children.unlink(main_level_coll)
+            if main_level_coll.name in [c.name for c in ubio_coll.children]:
+                ubio_coll.children.unlink(main_level_coll)
             # 移除collection本身
             bpy.data.collections.remove(level_path_coll)
             bpy.data.collections.remove(main_level_coll)
             # 如果UECOLL没有其他子collection，也移除
-            if not ueio_coll.children:
-                bpy.data.collections.remove(ueio_coll)
+            if not ubio_coll.children:
+                bpy.data.collections.remove(ubio_coll)
             bpy.ops.outliner.orphans_purge(do_local_ids=True)
 
         return self.execute(context)
@@ -306,20 +309,20 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
 
     def execute(self, context):
         params = context.scene.cat_params
-        json_path = params.ueio_json_path
+        json_path = params.ubio_json_path
 
         # 检查json文件是否存在
         if not os.path.exists(json_path):
             self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
             return {"CANCELLED"}
-
+        
         # 解析JSON文件
         with open(json_path, "r") as f:
             scene_data = json.load(f)
 
         # 找到UECOLL下的collection
-        ueio_coll = bpy.data.collections.get(UECOLL)
-        if not ueio_coll:
+        ubio_coll = bpy.data.collections.get(UECOLL)
+        if not ubio_coll:
             self.report({"ERROR"}, f"找不到集合: {UECOLL}")
             return {"CANCELLED"}
 
@@ -327,7 +330,7 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
         level_asset_coll = None
         main_level_coll = None
         is_mainlevel = False
-        sub_colls = get_all_children(ueio_coll)
+        sub_colls = get_all_children(ubio_coll)
         for coll in sub_colls:
             coll_type = coll.get(UECOLL, None)
             print(coll.name)
@@ -353,7 +356,7 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
                 if level_asset_coll.name==level_name:
                     is_match_json = True
         if is_match_json==False:
-            self.report({'WARNING'}, "Current scene does not match the UEIO JSON")
+            self.report({'WARNING'}, "Current scene does not match the ubio JSON")
             return {"CANCELLED"}
 
         # 获取level_asset_coll下的所有对象
@@ -420,14 +423,15 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
                         "Blender": "NewActor"
                     }
                     scene_data["actors"].append(new_actor)
-        # 遍历json中的actors，匹配Blender对象
+        # 遍历json中的actors，检查其在Blender中是否存在
         for actor in scene_data.get("actors", []):
             actor_name = actor.get("name")
             actor_type = actor.get("actor_type")
             actor_fname = actor.get("fname")
             actor_guid = str(actor.get("fguid"))
 
-            # 在Blender对象中查找匹配
+            # 检查Blender中是否有对应对象
+            found = False
             for obj in level_actor_objs:
                 if (
                     obj.name == actor_name
@@ -436,7 +440,8 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
                     and str(obj.get(GUID, "")) == actor_guid
                 ):
                     # 匹配成功，更新json中的transform为Blender中的transform
-                    print(f"匹配到对象：{obj.name}")
+                    found = True
+                    # print(f"匹配到对象：{obj.name}")
                     loc = obj.location * 100
                     rot = obj.rotation_euler
                     # Blender和UE坐标系：Y轴取反
@@ -462,7 +467,12 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
                             "z": scale.z
                         }
                     }
-                    print(f"transform: {actor['transform']}")
+
+                    break
+            # 如果没有找到，标记为Blender:Removed
+            if not found:
+                # 添加Blender:Removed字段，值为"Removed"
+                actor["Blender"] = "Removed"  # 中文注释：标记此actor在Blender中不存在
 
         # 保存修改后的json
         with open(json_path, "w") as f:
@@ -470,6 +480,25 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
 
         self.report({"INFO"}, "已同步Blender对象变换到JSON文件")
         return {"FINISHED"}
+
+
+class CleanUBIOTempFilesOperator(bpy.types.Operator):
+    bl_idname = "cat.clean_ubio_tempfiles"
+    bl_label = "CleanUBIOTempFiles"
+    bl_description = "Clean UBIO Temp Files"
+
+    def execute(self, context):
+        params = context.scene.cat_params
+        json_path = params.ubio_json_path
+        dir_path = os.path.dirname(json_path)
+        for file in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        self.report({"INFO"}, f"已清理UBIO临时文件: {dir_path}") 
+        
+        return {"FINISHED"}
+
 
 
 # class CAT_OT_MakeUEActorInstance(bpy.types.Operator):
