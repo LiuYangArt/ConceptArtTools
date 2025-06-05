@@ -81,7 +81,7 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator("cat.sync_materials_from_active", icon="MATERIAL")
         box_column.operator("cat.set_decal_object", icon="MOD_DISPLACE")
         box_column.operator("cat.match_material_to_decal", icon="COPY_ID")
-        box_column.operator("cat.copy_vertex_color_from_active", icon="COPYDOWN")
+        # box_column.operator("cat.copy_vertex_color_from_active", icon="COPYDOWN")
         
         
         box_column.prop(parameters, "work_mode", text="Work Mode")
