@@ -152,3 +152,101 @@ class SetDecalObjectOperator(bpy.types.Operator):
         self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
 
         return {"FINISHED"}
+    
+
+def get_material_data_from_obj(obj):
+    """Get material data from object"""
+    mat_basecolor = None
+    mat_roughness = None
+    mat_metallic = None
+    if obj.type == 'MESH':
+        if len(obj.data.materials) > 0:
+            mat = obj.data.materials[0]
+            if mat:
+                mat_basecolor = mat.node_tree.nodes.get("Principled BSDF").inputs[0].default_value
+                mat_metallic = mat.node_tree.nodes.get("Principled BSDF").inputs[1].default_value
+                mat_roughness = mat.node_tree.nodes.get("Principled BSDF").inputs[2].default_value
+                
+            else: 
+                return None
+    return mat_basecolor,mat_metallic,mat_roughness 
+
+DECAL_ATTR_COLOR = "CAT_Decal_Color"
+DECAL_ATTR_ROUGHNESS = "CAT_Decal_Roughness"
+DECAL_ATTR_METALLIC = "CAT_Decal_Metallic"
+def set_material_data_to_obj(obj, mat_basecolor, mat_metallic, mat_roughness):
+    if obj.type == 'MESH':
+        print("set material data to decal object's attribute")
+        #  set material data to decal object's attribute
+        print(f" set mat_basecolor: {mat_basecolor},  mat_metallic: {mat_metallic}, mat_roughness: {mat_roughness}")
+        
+        obj[DECAL_ATTR_COLOR] = mat_basecolor
+        obj[DECAL_ATTR_ROUGHNESS] = mat_roughness
+        obj[DECAL_ATTR_METALLIC] = mat_metallic
+        # 检查object的顶点色属性是否存在
+        if DECAL_ATTR_COLOR not in obj.data.attributes:
+            obj.data.attributes.new(DECAL_ATTR_COLOR, 'FLOAT_COLOR', 'POINT')
+        if DECAL_ATTR_ROUGHNESS not in obj.data.attributes:
+            obj.data.attributes.new(DECAL_ATTR_ROUGHNESS, 'FLOAT', 'POINT')
+        if DECAL_ATTR_METALLIC not in obj.data.attributes:
+            obj.data.attributes.new(DECAL_ATTR_METALLIC, 'FLOAT', 'POINT')
+        # 将属性写入所有顶点
+        color_attr = obj.data.attributes[DECAL_ATTR_COLOR]
+        roughness_attr = obj.data.attributes[DECAL_ATTR_ROUGHNESS]
+        metallic_attr = obj.data.attributes[DECAL_ATTR_METALLIC]
+
+        color_list = list(mat_basecolor)
+        color_data = color_list * len(color_attr.data)
+        color_attr.data.foreach_set(
+            "color_srgb", color_data
+        )
+        roughness_attr.data.foreach_set(
+            "value", [mat_roughness] * len(roughness_attr.data)
+        )
+        metallic_attr.data.foreach_set(
+            "value", [mat_metallic] * len(metallic_attr.data)
+        )
+
+
+class MatchMaterialToDecalOperator(bpy.types.Operator):
+    bl_idname = "cat.match_material_to_decal"
+    bl_label = "Match Material to Decal"
+    bl_options = {"UNDO"}
+    bl_description = "Match Material to Decal"
+
+    def execute(self, context):
+        selected_objs = context.selected_objects
+        active_obj = context.active_object
+        selected_objs.remove(active_obj)
+        source_obj = selected_objs[0]
+        if active_obj[CUSTOM_NAME] == DECAL_NAME: # is decal object
+            mat_basecolor,  mat_metallic, mat_roughness = get_material_data_from_obj(source_obj)
+            if mat_basecolor is None:
+                self.report({'WARNING'}, "Source object has no material")
+                return {"CANCELLED"}
+            for i in mat_basecolor:
+                print(i)
+            print(f"mat_basecolor: {mat_basecolor},  mat_metallic: {mat_metallic}, mat_roughness: {mat_roughness}") 
+            #save material data to decal object's attribute, basecolor to vertex color attribute, roughness and metallic to float attribute
+            set_material_data_to_obj(active_obj, mat_basecolor,mat_metallic, mat_roughness )
+
+            for i in active_obj[DECAL_ATTR_COLOR]:
+                print(i)
+        else: 
+            self.report({'WARNING'}, "Active object is not a Decal Object")
+            return {"CANCELLED"}
+
+        self.report({'INFO'}, f"Match Material to Decal Finished")
+
+        return {"FINISHED"}
+    def invoke(self, context, event):
+        selected_objs = context.selected_objects
+        active_obj = context.active_object
+        
+        if len(selected_objs) != 2: # only two objects are selected
+            self.report({'WARNING'}, "Please select two objects")
+            return {"CANCELLED"}
+        # if active_obj[CUSTOM_NAME] != DECAL_NAME:
+        #     self.report({'WARNING'}, "Active object is not a Decal Object")
+        return self.execute(context)
+

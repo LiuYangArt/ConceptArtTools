@@ -62,12 +62,16 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
     def execute(self, context):
         params = context.scene.cat_params
         json_path = params.ubio_json_path
+        # 检查是否为json文件
+
 
         # 检查json_path是否存在
-        if not os.path.exists(json_path):
-            self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
-            return {"CANCELLED"}
-        print(json_path)
+        # if not os.path.exists(json_path):
+        #     self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
+        #     return {"CANCELLED"}
+        # if not json_path.lower().endswith(".json"):
+        #     self.report({"ERROR"}, "请选择一个 .json 文件")
+        #     return {"CANCELLED"}
         # 解析JSON文件
         with open(json_path, "r") as f:
             scene_data = json.load(f)
@@ -190,6 +194,9 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         # 检查json_path是否存在
         if not os.path.exists(json_path):
             self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
+            return {"CANCELLED"}
+        if not json_path.lower().endswith(".json"):
+            self.report({"ERROR"}, "请选择一个 .json 文件")
             return {"CANCELLED"}
 
         # 解析JSON文件

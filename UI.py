@@ -44,6 +44,7 @@ class UIParams(PropertyGroup):
         subtype="FILE_PATH",
         options={'HIDDEN'},
         update=run_import_json_op,
+        
 )
 
 class InstancedCollectionToolPanel(bpy.types.Panel):
@@ -79,6 +80,8 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         # box_column.separator()
         box_column.operator("cat.sync_materials_from_active", icon="MATERIAL")
         box_column.operator("cat.set_decal_object", icon="MOD_DISPLACE")
+        box_column.operator("cat.match_material_to_decal", icon="MOD_DISPLACE")
+        
         box_column.prop(parameters, "work_mode", text="Work Mode")
 
         box_column.separator()
