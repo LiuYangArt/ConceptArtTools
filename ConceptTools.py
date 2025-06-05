@@ -71,15 +71,35 @@ class SetWorkModeOperator(bpy.types.Operator):
         self.report({'INFO'}, f"Set work mode to {work_mode}")
 
         return {"FINISHED"}
-    
+def break_link_from_assetlib(object):
+    obj_collection = object.users_collection[0]
+    unlinked_mesh =object.copy()
+    unlinked_mesh.data = object.data.copy()
+    obj_collection.objects.link(unlinked_mesh)
+    mesh_data=object.data
+    mesh_name=object.name
+    bpy.data.objects.remove(object)
+    bpy.data.meshes.remove(mesh_data)
+    unlinked_mesh.name = mesh_name
+    return unlinked_mesh
 class SetDecalObjectOperator(bpy.types.Operator):
     bl_idname = "cat.set_decal_object"
     bl_label = "Set Decal Object"
     bl_description = "Turn off shadow and add displacement offset, In Edit Mode remove non-selected faces and set pivot to center of selected faces"  
-    bl_options = {'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
+    offset_distance: bpy.props.FloatProperty(name="Offset Distance", default=0.008, min=0.0, max=1.0, step=1, precision=2)
+    vertexcolor: bpy.props.FloatVectorProperty(
+        name="Bake Color Picker",
+        subtype="COLOR",
+        size=4,
+        min=0.0,
+        max=1.0,
+        default=(0.5, 0.5, 0.5, 0.5),
+    )
     def execute(self, context):
         # 如果在EDIT MODE，处理选中顶点
+        print(self.offset_distance)
         if context.mode == 'EDIT_MESH':
             # 支持多个object edit mode
             edit_objs = [obj for obj in context.selected_objects if obj.mode == 'EDIT']
@@ -130,6 +150,7 @@ class SetDecalObjectOperator(bpy.types.Operator):
         for obj in selected_objs:
             if obj.type in {'MESH', 'FONT'}:
                 # 关闭投影
+                obj=break_link_from_assetlib(obj)
                 if hasattr(obj, "cycles"):
                     obj.cycles.is_shadow_catcher = False
                 if hasattr(obj, "visible_shadow"):
@@ -145,13 +166,19 @@ class SetDecalObjectOperator(bpy.types.Operator):
                 elif obj.modifiers[DISPLACE_MOD]:
                     disp_mod=obj.modifiers[DISPLACE_MOD]
                 if disp_mod:
-                    disp_mod.strength = DECAL_OFFSET
+                    disp_mod.strength = self.offset_distance
 
+                color_attr_name = get_vertex_color_attribute_name(obj)
+                if color_attr_name is None:
+                    color_attr_name = DECAL_ATTR_COLOR
+                set_object_vertexcolor(obj, self.vertexcolor,color_attr_name)
                 count += 1
 
         self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
 
         return {"FINISHED"}
+    def invoke(self, context, event):
+        return self.execute(context)
     
 
 def get_material_data_from_obj(obj):
@@ -163,9 +190,15 @@ def get_material_data_from_obj(obj):
         if len(obj.data.materials) > 0:
             mat = obj.data.materials[0]
             if mat:
-                mat_basecolor = mat.node_tree.nodes.get("Principled BSDF").inputs[0].default_value
-                mat_metallic = mat.node_tree.nodes.get("Principled BSDF").inputs[1].default_value
-                mat_roughness = mat.node_tree.nodes.get("Principled BSDF").inputs[2].default_value
+                principled = mat.node_tree.nodes.get("Principled BSDF")
+                if principled:
+                    # 通过input的名字获取数据
+                    mat_basecolor = principled.inputs["Base Color"].default_value
+                    mat_metallic = principled.inputs["Metallic"].default_value
+                    mat_roughness = principled.inputs["Roughness"].default_value
+                else:
+                    print("No principled node found in material")
+                    return None
                 
             else: 
                 return None
@@ -218,23 +251,27 @@ class MatchMaterialToDecalOperator(bpy.types.Operator):
         selected_objs = context.selected_objects
         active_obj = context.active_object
         selected_objs.remove(active_obj)
-        source_obj = selected_objs[0]
-        if active_obj[CUSTOM_NAME] == DECAL_NAME: # is decal object
-            mat_basecolor,  mat_metallic, mat_roughness = get_material_data_from_obj(source_obj)
-            if mat_basecolor is None:
-                self.report({'WARNING'}, "Source object has no material")
-                return {"CANCELLED"}
-            for i in mat_basecolor:
-                print(i)
-            print(f"mat_basecolor: {mat_basecolor},  mat_metallic: {mat_metallic}, mat_roughness: {mat_roughness}") 
-            #save material data to decal object's attribute, basecolor to vertex color attribute, roughness and metallic to float attribute
-            set_material_data_to_obj(active_obj, mat_basecolor,mat_metallic, mat_roughness )
+        source_obj = active_obj
+        for target_obj in selected_objs:
+            if target_obj[CUSTOM_NAME] == DECAL_NAME: # is decal object
+                mat_data=get_material_data_from_obj(source_obj)
+                if mat_data is None: 
+                    self.report({'ERROR'}, "Source object has no principled BSDF")
+                    return {"CANCELLED"}
+                else:
+                    mat_basecolor,  mat_metallic, mat_roughness = mat_data
+                if mat_basecolor is None:
+                    self.report({'WARNING'}, "Source object has no material")
+                    return {"CANCELLED"}
+                for i in mat_basecolor:
+                    print(i)
+                print(f"mat_basecolor: {mat_basecolor},  mat_metallic: {mat_metallic}, mat_roughness: {mat_roughness}") 
+                #save material data to decal object's attribute, basecolor to vertex color attribute, roughness and metallic to float attribute
+                set_material_data_to_obj(active_obj, mat_basecolor,mat_metallic, mat_roughness )
 
-            for i in active_obj[DECAL_ATTR_COLOR]:
-                print(i)
-        else: 
-            self.report({'WARNING'}, "Active object is not a Decal Object")
-            return {"CANCELLED"}
+            else: 
+                self.report({'WARNING'}, "Active object is not a Decal Object")
+                return {"CANCELLED"}
 
         self.report({'INFO'}, f"Match Material to Decal Finished")
 
@@ -243,10 +280,106 @@ class MatchMaterialToDecalOperator(bpy.types.Operator):
         selected_objs = context.selected_objects
         active_obj = context.active_object
         
-        if len(selected_objs) != 2: # only two objects are selected
-            self.report({'WARNING'}, "Please select two objects")
+        if len(selected_objs) < 2: # only two objects are selected
+            self.report({'WARNING'}, "Please select at least two objects")
             return {"CANCELLED"}
         # if active_obj[CUSTOM_NAME] != DECAL_NAME:
         #     self.report({'WARNING'}, "Active object is not a Decal Object")
         return self.execute(context)
 
+def get_vertex_color_from_obj(obj)->list:
+    if obj.type == 'MESH':
+        # 使用第一个 color attribute
+        color_attr = None
+        for attr in obj.data.color_attributes:
+            print(attr.name , attr)
+            if attr.domain in {'POINT', 'CORNER'}:
+                color_attr = obj.data.attributes[attr.name]
+            break
+        if color_attr:
+            color_data = color_attr.data
+            color_list = []
+            for i in color_data:
+                # 支持 COLOR 和 BYTE_COLOR 两种类型
+                if hasattr(i, "color_srgb"):
+                    color_list.append(i.color_srgb)
+                elif hasattr(i, "color"):
+                    color_list.append(i.color)
+                elif hasattr(i, "vertex_colors"):
+                    color_list.append(i.color)
+                else:
+                    color_list.append(None)
+            if color_list:
+                color = [
+                sum(c[i] for c in color_list) / len(color_list)
+                for i in range(len(color_list[0]))
+                ]
+                return color
+        else:
+            return None
+def get_vertex_color_attribute_name(obj)->str:
+    if obj.type == 'MESH':
+        # 使用第一个 color attribute
+        color_attr = None
+        for attr in obj.data.color_attributes:
+            print(attr.name , attr)
+            if attr.domain in {'POINT', 'CORNER'}:
+                color_attr = obj.data.attributes[attr.name]
+            break
+        if color_attr:
+            return color_attr.name
+        else:
+            return None
+        
+def set_object_vertexcolor(target_object, color: tuple, vertexcolor_name: str) -> None:
+    """设置顶点色"""
+    color = tuple(color)
+    # print(current_mode)
+    if target_object.type == "MESH":
+        mesh = target_object.data
+        if vertexcolor_name in mesh.color_attributes:
+            color_attribute = mesh.color_attributes.get(vertexcolor_name)
+        else:
+            color_attribute = mesh.color_attributes.new(name=vertexcolor_name, type='FLOAT_COLOR', domain='POINT')
+        # 设置所有顶点色
+        color_data = list(color) * len(color_attribute.data)
+        color_attribute.data.foreach_set("color_srgb", color_data)
+        # 设为active
+        mesh.attributes.active_color = color_attribute
+
+
+class CopyVertexColorFromActiveOperator(bpy.types.Operator):
+    bl_idname = "cat.copy_vertex_color_from_active"
+    bl_label = "Copy Vertex Color From Active"
+    bl_options = {"UNDO"}
+    bl_description = "Copy Vertex Color From Active"
+
+    def execute(self, context):
+        selected_objs = context.selected_objects
+        active_obj = context.active_object
+        selected_objs.remove(active_obj)
+        source_obj = active_obj
+        color=get_vertex_color_from_obj(source_obj)
+        # atribute_name = DECAL_ATTR_COLOR
+        if color is None: 
+            self.report({'ERROR'}, "Source object has no vertex color")
+            return {"CANCELLED"}
+        for target_obj in selected_objs:
+            color_attr_name = get_vertex_color_attribute_name(target_obj)
+            if color_attr_name is None:
+                color_attr_name = DECAL_ATTR_COLOR
+            set_object_vertexcolor(target_obj, color, color_attr_name)
+
+
+        self.report({'INFO'}, f"Copied Vertex Color From Active Finished")
+
+        return {"FINISHED"}
+    def invoke(self, context, event):
+        selected_objs = context.selected_objects
+        
+        if len(selected_objs) < 2: # only two objects are selected
+            self.report({'WARNING'}, "Please select at least two objects")
+            return {"CANCELLED"}
+        # if active_obj[CUSTOM_NAME] != DECAL_NAME:
+        #     self.report({'WARNING'}, "Active object is not a Decal Object")
+        return self.execute(context)
