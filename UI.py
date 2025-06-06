@@ -102,6 +102,6 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.separator()
         box_column.label(text="UBIO Tools")
         box_column.operator("cat.ubio_add_proxy_pivot", icon="EMPTY_ARROWS")
-        box_column.operator("cat.ubio_mirror_actors", icon="MOD_MIRROR")
+        box_column.operator("cat.ubio_mirror_copy_actors", icon="MOD_MIRROR")
         # box_column.operator("cat.make_ue_actor_instance")
         

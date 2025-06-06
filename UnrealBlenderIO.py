@@ -65,24 +65,19 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         json_path = params.ubio_json_path
         # 检查是否为json文件
 
-
         with open(json_path, "r") as f:
             scene_data = json.load(f)
 
         # 构建FBX文件路径
         fbx_path = os.path.splitext(json_path)[0] + ".fbx"
-
         # 检查FBX文件是否存在
         if not os.path.exists(fbx_path):
             self.report({"ERROR"}, f"找不到对应的FBX文件: {fbx_path}")
             return {"CANCELLED"}
-        # 导入FBX，设置参数：导入custom normal，不导入动画
-        # 记录导入前的对象集合
 
         # 从json获得 main_level 和 level_path 两个数据
         main_level = scene_data.get("main_level", None)
         level_path = scene_data.get("level_path", None)
-
         main_level_name = get_name_from_ue_path(main_level)
         if main_level == level_path:
             level_path_name = MAINLEVEL
@@ -554,9 +549,9 @@ class UBIOAddProxyPivotOperator(bpy.types.Operator):
         self.report({"INFO"}, "已添加Proxy Pivot到Level Asset Collection")
         return {"FINISHED"}
 
-class UBIOMirrorActorsOperator(bpy.types.Operator):
-    bl_idname = "cat.ubio_mirror_actors"
-    bl_label = "Mirror Actors"
+class UBIOMirrorCopyActorsOperator(bpy.types.Operator):
+    bl_idname = "cat.ubio_mirror_copy_actors"
+    bl_label = "Mirror Copy Actors"
     bl_options = {'REGISTER', 'UNDO'}
     bl_description = "镜像复制选中的对象，以Proxy Pivot为轴"
 
@@ -569,7 +564,7 @@ class UBIOMirrorActorsOperator(bpy.types.Operator):
         ],
         default="X"
     )
-    #TODO: 执行operator时， 检查选中的objects是否有obj[ue_fname]属性以判断是否actor， 检查是否已存在proxy pivot (name=Pivot, type=EMPTY)。如果不存在则报错。 如有则执行。 执行后显示一个GIZMO用于选择镜像方向， 以proxy pivot为原点， 镜像方向为当前选中的axis。
+
     def invoke(self, context, event):
                 # 1. 检查选中对象是否为actor（有 ue_fname 属性）
         selected_objs = [obj for obj in context.selected_objects if FNAME in obj]
@@ -596,10 +591,7 @@ class UBIOMirrorActorsOperator(bpy.types.Operator):
     
     def execute(self, context):
         selected_objs = [obj for obj in context.selected_objects if FNAME in obj]
-        ubio_coll = bpy.data.collections.get(UECOLL)
-        level_asset_coll = None
-        if ubio_coll:
-            level_asset_coll = find_level_asset_coll()
+        level_asset_coll = find_level_asset_coll()
         for obj in level_asset_coll.objects:
             if obj.type == 'EMPTY' and obj.name == PROXY_PIVOT_OBJ:
                 proxy_pivot = obj

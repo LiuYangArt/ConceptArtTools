@@ -377,7 +377,7 @@ class CopyVertexColorFromActiveOperator(bpy.types.Operator):
             set_object_vertexcolor(target_obj, color, color_attr_name)
 
 
-        self.report({'INFO'}, f"Copied Vertex Color From Active Finished")
+        self.report({'INFO'}, "Copied Vertex Color From Active Finished")
 
         return {"FINISHED"}
     def invoke(self, context, event):
@@ -467,7 +467,7 @@ class SnapAngelOperator(bpy.types.Operator):
                 if any(abs(a - b) > 1e-5 for a, b in zip(scale, snapped_scale)):
                     obj.scale = snapped_scale
                     changed_count += 1
-        self.report({'INFO'}, f"已吸附 {changed_count} 个对象的位置/旋转/缩放（位置单位：厘米）")
+        self.report({'INFO'}, f"已吸附 {changed_count} 个对象的位置/旋转/缩放")
         return {"FINISHED"}
     def invoke(self, context,event):
         selected_objs = context.selected_objects

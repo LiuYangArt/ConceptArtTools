@@ -6,6 +6,7 @@ alwaysApply: false
 这是一个Blender Python 插件项目。 Blender版本是4.4。
 在文件头添加Import bpy
 使用context7 mcp 检索api文档
+这个项目使用了auto_load， 不需要单独注册operator
 尽量把通用的功能做成function ， 每段代码不要过长。
 使用中文写注释。
 变量名不要过度缩写，以便人类阅读。 比如 o for objects 就太短了，  使用 obj for objects 比较合适
