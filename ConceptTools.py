@@ -1,6 +1,7 @@
 import bpy
 from .util import *
 import bmesh
+import math
 
 class SyncMaterialsToActiveOperator(bpy.types.Operator):
     bl_idname = "cat.sync_materials_from_active"
@@ -98,8 +99,33 @@ class SetDecalObjectOperator(bpy.types.Operator):
         default=(0.5, 0.5, 0.5, 0.5),
     )
     def execute(self, context):
+        selected_objs = context.selected_objects
+        count = 0
+        for obj in selected_objs:
+            if obj.type in {'MESH', 'FONT'}:
+                # 增加一个displace modifier
+                if DISPLACE_MOD not in obj.modifiers:
+                    disp_mod = obj.modifiers.new(name=DISPLACE_MOD, type='DISPLACE')
+                elif obj.modifiers[DISPLACE_MOD]:
+                    disp_mod=obj.modifiers[DISPLACE_MOD]
+                if disp_mod:
+                    disp_mod.strength = self.offset_distance
+                color_attr_name = get_vertex_color_attribute_name(obj)
+                if color_attr_name is None:
+                    color_attr_name = "VertexColor"
+                set_object_vertexcolor(obj, self.vertexcolor,color_attr_name)
+                obj.select_set(True)
+                count += 1
+
+        # self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
+
+        return {"FINISHED"}
+    def invoke(self, context, event):
+        selected_objs = context.selected_objects
+        if len(selected_objs) == 0:
+            self.report({'WARNING'}, "No vaild target objects")
+            return {"CANCELLED"}
         # 如果在EDIT MODE，处理选中顶点
-        print(self.offset_distance)
         if context.mode == 'EDIT_MESH':
             # 支持多个object edit mode
             edit_objs = [obj for obj in context.selected_objects if obj.mode == 'EDIT']
@@ -142,42 +168,23 @@ class SetDecalObjectOperator(bpy.types.Operator):
                 center = centers.get(obj.name)
                 if center is not None:
                     set_object_pivot_location(obj, center)
-
-        selected_objs = context.selected_objects
-
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        count = 0
         for obj in selected_objs:
             if obj.type in {'MESH', 'FONT'}:
                 # 关闭投影
                 obj=break_link_from_assetlib(obj)
+                obj.select_set(True)
                 if hasattr(obj, "cycles"):
                     obj.cycles.is_shadow_catcher = False
                 if hasattr(obj, "visible_shadow"):
                     obj.visible_shadow = False
                 if hasattr(obj, "show_shadows"):
                     obj.display.show_shadows = False
-
                 obj[CUSTOM_NAME] = DECAL_NAME
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        print("run decal setter")
 
-                # 增加一个displace modifier
-                if DISPLACE_MOD not in obj.modifiers:
-                    disp_mod = obj.modifiers.new(name=DISPLACE_MOD, type='DISPLACE')
-                elif obj.modifiers[DISPLACE_MOD]:
-                    disp_mod=obj.modifiers[DISPLACE_MOD]
-                if disp_mod:
-                    disp_mod.strength = self.offset_distance
 
-                color_attr_name = get_vertex_color_attribute_name(obj)
-                if color_attr_name is None:
-                    color_attr_name = DECAL_ATTR_COLOR
-                set_object_vertexcolor(obj, self.vertexcolor,color_attr_name)
-                count += 1
 
-        self.report({'INFO'}, f"Set {count} object(s) as Decal Object")
-
-        return {"FINISHED"}
-    def invoke(self, context, event):
         return self.execute(context)
     
 
@@ -322,7 +329,6 @@ def get_vertex_color_attribute_name(obj)->str:
         # 使用第一个 color attribute
         color_attr = None
         for attr in obj.data.color_attributes:
-            print(attr.name , attr)
             if attr.domain in {'POINT', 'CORNER'}:
                 color_attr = obj.data.attributes[attr.name]
             break
@@ -382,4 +388,89 @@ class CopyVertexColorFromActiveOperator(bpy.types.Operator):
             return {"CANCELLED"}
         # if active_obj[CUSTOM_NAME] != DECAL_NAME:
         #     self.report({'WARNING'}, "Active object is not a Decal Object")
+        return self.execute(context)
+    
+
+class SnapAngelOperator(bpy.types.Operator):
+    bl_idname = "cat.snap_transform"
+    bl_label = "Snap Transform"
+    bl_options  = {'REGISTER', 'UNDO'}
+
+    snap_location_toggle: bpy.props.BoolProperty(name="Snap Location",default=True)
+    snap_rotation_toggle: bpy.props.BoolProperty(name="Snap Rotation",default=True)
+    snap_scale_toggle: bpy.props.BoolProperty(name="Snap Scale",default=False)
+    
+    snap_grid: bpy.props.EnumProperty(
+        name="Grid (cm)",
+        items=[
+            ("1", "1", "1"),
+            ("5", "5", "5"),
+            ("10", "10", "10"),
+        ],
+        default="1"
+    )
+    snap_angle: bpy.props.EnumProperty(
+        name="Angle (deg)",
+        items=[
+            ("1", "1", "1"),
+            ("5", "5", "5"),
+            ("10", "10", "10"),
+            ("15", "15", "15"),
+            ("30", "30", "30"),
+            ("45", "45", "45"),
+            ("60", "60", "60"),
+            ("90", "90", "90"),
+        ],
+        default="5"
+    )
+    snap_scale:bpy.props.EnumProperty(
+        name="Scale",
+        items=[
+            ("1", "1", "1"),
+            ("0.5", "0.5", "0.5"),
+            ("0.25", "0.25", "0.25"),
+            ("0.125", "0.125", "0.125"),
+            ("0.0625", "0.0625", "0.0625"),
+        ],default="0.125"
+    )
+
+    def execute(self, context):
+        # 对于选中的对象，逐个检查 transform 的 location 和 rotation，
+        # 如果 location 不是 snap_grid 的倍数（以厘米为单位），则修改 location 到最接近的 snap_grid 的倍数。
+        # 如果 rotation 不是 snap_angle 的倍数，则修改 rotation 到最接近的 snap_angle 的倍数。
+        
+        selected_objs = context.selected_objects
+        snap_grid_cm = float(self.snap_grid)  # 单位：厘米
+        snap_grid = snap_grid_cm / 100.0      # Blender内部单位：米
+        snap_angle = float(self.snap_angle)
+        snap_scale_val = float(self.snap_scale) if hasattr(self, 'snap_scale') and self.snap_scale_toggle else None
+        changed_count = 0
+        for obj in selected_objs:
+            # 位置吸附（以厘米为单位）
+            if self.snap_location_toggle:
+                loc = obj.location
+                snapped_loc = [round(coord / snap_grid) * snap_grid for coord in loc]
+                if any(abs(a - b) > 1e-5 for a, b in zip(loc, snapped_loc)):
+                    obj.location = snapped_loc
+                    changed_count += 1
+            # 旋转吸附
+            if self.snap_rotation_toggle:
+                rot = obj.rotation_euler
+                snapped_rot = [math.radians(round(math.degrees(angle) / snap_angle) * snap_angle) for angle in rot]
+                if any(abs(a - b) > 1e-5 for a, b in zip(rot, snapped_rot)):
+                    obj.rotation_euler = snapped_rot
+                    changed_count += 1
+            # 缩放吸附
+            if self.snap_scale_toggle and snap_scale_val is not None:
+                scale = obj.scale
+                snapped_scale = [round(s / snap_scale_val) * snap_scale_val for s in scale]
+                if any(abs(a - b) > 1e-5 for a, b in zip(scale, snapped_scale)):
+                    obj.scale = snapped_scale
+                    changed_count += 1
+        self.report({'INFO'}, f"已吸附 {changed_count} 个对象的位置/旋转/缩放（位置单位：厘米）")
+        return {"FINISHED"}
+    def invoke(self, context,event):
+        selected_objs = context.selected_objects
+        if len(selected_objs) == 0: 
+            return {"CANCELLED"}
         return self.execute(context)

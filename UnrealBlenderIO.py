@@ -1,6 +1,7 @@
 import bpy
 import os
 import json
+
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
 from mathutils import Vector, Euler
@@ -20,6 +21,8 @@ COLLINST_TYPES = ["Blueprint"]
 BL_FLAG= "Blender"
 BL_NEW="NewActor"
 BL_DEL="Removed"
+PROXY_PIVOT = "UBIOProxyPivot"
+PROXY_PIVOT_OBJ ="Pivot"
 
 
 def make_collection(collection_name: str, type:str="") -> bpy.types.Collection:
@@ -46,9 +49,7 @@ def move_objs_to_collection(objs, collection_name: str) -> None:
 
 def get_name_from_ue_path(path: str) -> str:
     """从UE路径中提取名称"""
-    # # 先取最后一个/后的部分
-    # last_part = path.split('/')[-1]
-    # # 再取最后一个.后的部分
+
     name = path.split(".")[-1]
     return name
 
@@ -65,14 +66,6 @@ class CAT_OT_ImportUnrealScene(bpy.types.Operator):
         # 检查是否为json文件
 
 
-        # 检查json_path是否存在
-        # if not os.path.exists(json_path):
-        #     self.report({"ERROR"}, f"找不到JSON文件: {json_path}")
-        #     return {"CANCELLED"}
-        # if not json_path.lower().endswith(".json"):
-        #     self.report({"ERROR"}, "请选择一个 .json 文件")
-        #     return {"CANCELLED"}
-        # 解析JSON文件
         with open(json_path, "r") as f:
             scene_data = json.load(f)
 
@@ -302,6 +295,7 @@ def convert_to_actor_instance(actor_obj):
     new_actor_obj[FNAME] = actor_fname
     new_actor_obj[ACTORTYPE] = actor_type
     new_actor_obj[ACTORCLASS] = actor_class
+    new_actor_obj.empty_display_size=0.1
     # 移动到原collection
     new_actor_obj.users_collection[0].objects.unlink(new_actor_obj)
     target_collection.objects.link(new_actor_obj)
@@ -362,8 +356,8 @@ class CAT_OT_ExportUnrealJSON(bpy.types.Operator):
             else:
                 if level_asset_coll.name==level_name:
                     is_match_json = True
-        if is_match_json==False:
-            self.report({'WARNING'}, "Current scene does not match the ubio JSON")
+        if not is_match_json:
+            self.report({'WARNING'}, "当前场景与ubio JSON不匹配")
             return {"CANCELLED"}
 
         # 获取level_asset_coll下的所有对象
@@ -507,20 +501,181 @@ class CleanUBIOTempFilesOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def find_level_asset_coll():
+    ubio_coll = bpy.data.collections.get(UECOLL)
+    sub_colls = get_all_children(ubio_coll)
+    for coll in sub_colls:
+        coll_type = coll.get(UECOLL, None)
+        if coll_type == COLL_LEVEL:
+            return coll
+    return None
 
-# class CAT_OT_MakeUEActorInstance(bpy.types.Operator):
-#     """Collapses selected meshes into one collection and spawns its instance here."""  # NOQA
+class UBIOAddProxyPivotOperator(bpy.types.Operator):
+    bl_idname = "cat.ubio_add_proxy_pivot"
+    bl_label = "Set Proxy Pivot"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "为选中的对象添加Proxy Pivot"
+    def execute(self, context):
+        # 1. 获取level asset collection
+        ubio_coll = bpy.data.collections.get(UECOLL)
+        level_asset_coll = None
+        if ubio_coll:
+            level_asset_coll = find_level_asset_coll()
+        if not level_asset_coll:
+            self.report({"ERROR"}, "未找到Level Asset Collection")
+            return {"CANCELLED"}
+        active_obj = context.active_object
+        # 2. 检查是否已存在proxy pivot（name=Pivot, type=EMPTY）
+        has_pivot = False
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in level_asset_coll.objects:
+            if obj.type == 'EMPTY' and obj.name == PROXY_PIVOT_OBJ:
+                has_pivot = True
+                break
+        if has_pivot:
+            pivot = obj
+            pivot.hide_viewport = False
+            pivot.hide_select = False
 
-#     bl_idname = "cat.make_ue_actor_instance"
-#     bl_label = "这是一个测试用的operator"
-#     bl_options = {"UNDO"}
+        else:
+            pivot = bpy.data.objects.new(PROXY_PIVOT_OBJ, None)
+            if active_obj:
+                pivot.location = active_obj.location
+            else:
+                pivot.location = (0, 0, 0)
+            level_asset_coll.objects.link(pivot)
 
-#     def execute(self, context):
-#         selected_objs = context.selected_objects
-#         for obj in selected_objs:
-#             convert_to_actor_instance(obj)
+        pivot.empty_display_type = 'ARROWS'
+        pivot.empty_display_size = 0.2
+        pivot.show_name = True
+        pivot.show_in_front = True
+        pivot["CAT"] = PROXY_PIVOT  # 标记自定义属性
+        pivot.select_set(True)
+        self.report({"INFO"}, "已添加Proxy Pivot到Level Asset Collection")
+        return {"FINISHED"}
 
-#         # clean up temp datas
-#         bpy.ops.outliner.orphans_purge(do_local_ids=True)
+class UBIOMirrorActorsOperator(bpy.types.Operator):
+    bl_idname = "cat.ubio_mirror_actors"
+    bl_label = "Mirror Actors"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "镜像复制选中的对象，以Proxy Pivot为轴"
 
-#         return {"FINISHED"}
+    mirror_axis: bpy.props.EnumProperty(
+        name="Mirror Axis",
+        items=[
+            ("X", "X", "X"),
+            ("Y", "Y", "Y"),
+            ("Z", "Z", "Z"),
+        ],
+        default="X"
+    )
+    #TODO: 执行operator时， 检查选中的objects是否有obj[ue_fname]属性以判断是否actor， 检查是否已存在proxy pivot (name=Pivot, type=EMPTY)。如果不存在则报错。 如有则执行。 执行后显示一个GIZMO用于选择镜像方向， 以proxy pivot为原点， 镜像方向为当前选中的axis。
+    def invoke(self, context, event):
+                # 1. 检查选中对象是否为actor（有 ue_fname 属性）
+        selected_objs = [obj for obj in context.selected_objects if FNAME in obj]
+        if not selected_objs:
+            self.report({'WARNING'}, '未选中任何actor对象（缺少ue_fname属性）')
+            return {'CANCELLED'}
+        # 2. 查找 level_asset_coll 下的 proxy pivot
+        ubio_coll = bpy.data.collections.get(UECOLL)
+        level_asset_coll = None
+        if ubio_coll:
+            level_asset_coll = find_level_asset_coll()
+        if not level_asset_coll:
+            self.report({'ERROR'}, '未找到Level Asset Collection')
+            return {'CANCELLED'}
+        proxy_pivot = None
+        for obj in level_asset_coll.objects:
+            if obj.type == 'EMPTY' and obj.name == PROXY_PIVOT_OBJ:
+                proxy_pivot = obj
+                break
+        if not proxy_pivot:
+            self.report({'ERROR'}, '未找到Proxy Pivot（Pivot）')
+            return {'CANCELLED'}
+        return self.execute(context)
+    
+    def execute(self, context):
+        selected_objs = [obj for obj in context.selected_objects if FNAME in obj]
+        ubio_coll = bpy.data.collections.get(UECOLL)
+        level_asset_coll = None
+        if ubio_coll:
+            level_asset_coll = find_level_asset_coll()
+        for obj in level_asset_coll.objects:
+            if obj.type == 'EMPTY' and obj.name == PROXY_PIVOT_OBJ:
+                proxy_pivot = obj
+                break
+        # 3. 以proxy pivot为原点，按mirror_axis镜像
+        axis = self.mirror_axis
+        # 只对选中轴做镜像，其他轴不变
+        mirror_vec = [1, 1, 1]
+        if axis == 'X':
+            mirror_vec[0] = -1
+        elif axis == 'Y':
+            mirror_vec[1] = -1
+        elif axis == 'Z':
+            mirror_vec[2] = -1
+        else:
+            self.report({'ERROR'}, f'未知镜像轴: {axis}')
+            return {'CANCELLED'}
+        new_objs = []
+        for obj in selected_objs:
+            # 计算相对pivot的向量
+            rel_loc = obj.location - proxy_pivot.location
+            # 镜像
+            mirrored_loc = proxy_pivot.location + Vector((
+                rel_loc.x * mirror_vec[0],
+                rel_loc.y * mirror_vec[1],
+                rel_loc.z * mirror_vec[2],
+            ))
+            # 复制对象
+            new_obj = obj.copy()
+            if obj.data:
+                new_obj.data = obj.data.copy()
+            new_obj.location = mirrored_loc
+            # 镜像旋转（只对被镜像轴做180度旋转）
+            new_rot = list(obj.rotation_euler)
+            if axis in ['X']:
+                new_rot[1] = -new_rot[1]
+                new_rot[2] = -new_rot[2]
+            elif axis in ['Y']:
+                new_rot[0] = -new_rot[0]
+                new_rot[2] = -new_rot[2]
+            elif axis in ['Z']:
+                new_rot[0] = -new_rot[0]
+                new_rot[1] = -new_rot[1]
+            new_obj.rotation_euler = new_rot
+            # 镜像缩放
+            new_obj.scale = Vector((
+                obj.scale.x * mirror_vec[0],
+                obj.scale.y * mirror_vec[1],
+                obj.scale.z * mirror_vec[2],
+            ))
+            # 保持自定义属性
+            for key in obj.keys():
+                if key not in {'_RNA_UI'}:
+                    value = obj[key]
+                    if isinstance(value, (str, int, float, bool)):
+                        new_obj[key] = value
+            # 加入到level_asset_coll
+            level_asset_coll.objects.link(new_obj)
+            new_objs.append(new_obj)
+        # 选中新对象
+        bpy.ops.object.select_all(action='DESELECT')
+        for o in new_objs:
+            o.select_set(True)
+        self.report({'INFO'}, f'已镜像复制 {len(new_objs)} 个actor对象')
+        return {'FINISHED'}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

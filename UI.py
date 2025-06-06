@@ -81,6 +81,7 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator("cat.sync_materials_from_active", icon="MATERIAL")
         box_column.operator("cat.set_decal_object", icon="MOD_DISPLACE")
         box_column.operator("cat.match_material_to_decal", icon="COPY_ID")
+        box_column.operator("cat.snap_transform", icon="SNAP_GRID")
         # box_column.operator("cat.copy_vertex_color_from_active", icon="COPYDOWN")
         
         
@@ -98,5 +99,9 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         box_column.operator("cat.import_unreal_scene", icon="IMPORT")
         box_column.operator("cat.export_unreal_scene_json", icon="EXPORT")
         box_column.operator("cat.clean_ubio_tempfiles", icon="FILE_REFRESH")
+        box_column.separator()
+        box_column.label(text="UBIO Tools")
+        box_column.operator("cat.ubio_add_proxy_pivot", icon="EMPTY_ARROWS")
+        box_column.operator("cat.ubio_mirror_actors", icon="MOD_MIRROR")
         # box_column.operator("cat.make_ue_actor_instance")
         
