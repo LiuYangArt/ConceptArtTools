@@ -4,13 +4,13 @@ import addon_utils
 
 # constants | 常值
 
-ADDON_NAME = "ConceptArt Tools"
+ADDON_NAME = "Concept Art Tools"
 for mod in addon_utils.modules():
     if mod.bl_info["name"] == ADDON_NAME:
         filepath = mod.__file__
         path = filepath.split("\__init__.py")[0]
         path = path.replace("\\", "/")
-        preset_path = path + "/PresetFiles/Presets.blend"
+        PRESET_PATH = path + "/PresetFiles/Presets.blend"
 GROUP_MOD = "CAT_MeshGroup"
 MIRROR_MOD = "CAT_Mirror"
 ARRAY_MOD = "CAT_Array"
@@ -29,6 +29,7 @@ MG_SOCKET_REALIZE = "Socket_3"
 MG_SOCKET_OFFSET = "Socket_7"
 DECAL_OFFSET = 0.008
 DEFAULT_IO_TEMP_DIR="C:\\Temp\\UBIO\\"
+GROUP_ROOT_COLL="_CAT_SourceGroups"
 
 # functions
 def import_node_group(file_path, node_name) -> bpy.types.NodeGroup:

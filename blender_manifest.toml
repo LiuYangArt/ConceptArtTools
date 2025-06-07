@@ -2,9 +2,9 @@ schema_version = "1.0.0"
 
 # Example of manifest file for a Blender extension
 # Change the values according to your extension
-id = "conceptart_tools"
+id = "concept_art_tools"
 version = "1.0.0"
-name = "ConceptArt Tools"
+name = "Concept Art Tools"
 tagline = "This is another extension"
 maintainer = "LiuYang"
 # Supported types: "add-on", "theme"

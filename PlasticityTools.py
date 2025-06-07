@@ -62,7 +62,7 @@ class MakeMeshGroupOperator(bpy.types.Operator):
                 if current_mode != "OBJECT":
                     bpy.ops.object.mode_set(mode="OBJECT")
                 # 导入用于生成Instance的Geometry Node
-                import_node_group(preset_path, GROUP_NODE)
+                import_node_group(PRESET_PATH, GROUP_NODE)
 
                 temp_mesh = bpy.data.meshes.new(TEMP_MESH)
                 instance_obj = bpy.data.objects.new(

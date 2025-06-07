@@ -12,16 +12,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-bl_info = {
-    "name": "ConceptArt Tools",
-    "author": "LiuYang",
-    "description": "",
-    "blender": (4, 2, 0),
-    "version": (0, 0, 1),
-    "location": "N Panel>CAT",
-    "warning": "Need Plasticity Bridge Connection to get all features work",
-    "category": "Generic",
-}
 
 import bpy
 from . import auto_load
