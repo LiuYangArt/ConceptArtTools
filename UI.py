@@ -87,6 +87,10 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         
         box_column.prop(parameters, "work_mode", text="Work Mode")
 
+        box_column.operator("cat.organize_lights_and_cameras", icon="LIGHT")
+        box_column.operator("cat.colorize_collection_objects", icon="LIGHT")
+        
+
         box_column.separator()
         box_column.label(text="Library Tools")
         # box_column.separator()

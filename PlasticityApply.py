@@ -31,6 +31,7 @@ def run_post_refacet_operations(context, target_filename, operator):
     """在 wm.refacet 完成后运行的自定义操作"""
     global post_refacet_data
     if not post_refacet_data:
+        #TODO: 这里逻辑需要修改， 在没有refacet的时候使用原mesh
         print("无后续操作数据")
         return
 
