@@ -138,6 +138,9 @@ class ORGANIZE_OT_colorize_collection_objects(bpy.types.Operator):
     bl_label = "Colorize Objects by Collection"
     bl_options = {"REGISTER", "UNDO"}
 
+    #TODO: 1. 对子Collection也需要同样进行处理。2.不再考虑选中的objects，而是直接处理当前scene下所有的collection  3. 修改Viewport模式，切换到 bpy.context.space_data.shading.light = 'STUDIO' bpy.context.space_data.shading.color_type = 'OBJECT'
+
+
     def invoke(self, context, event):
         # 1. Check if there are any selected objects.
         if not context.selected_objects:
