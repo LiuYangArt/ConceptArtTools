@@ -6,19 +6,21 @@ COLLECTION_ENV_COLOR = "COLOR_03"
 
 
 # Sort collections alphabetically
-def sort_children(collection):
-    if not collection.children:
-        return
-    # Get children names and sort them
-    sorted_names = sorted([c.name for c in collection.children])
+def sort_children(collection,case_sensitive=False):
+    """Sort children of a collection alphabetically"""
+    if collection.children is None:
+            return
 
-    # Re-link children in sorted order
-    for name in sorted_names:
-        child_coll = bpy.data.collections[name]
-        # Unlink and re-link to move to the end of the list
-        collection.children.unlink(child_coll)
-        collection.children.link(child_coll)
-        sort_children(child_coll)
+    children = sorted(
+        collection.children,
+        key=lambda c: c.name if case_sensitive else c.name.lower(),
+    )
+
+    for child in children:
+        collection.children.unlink(child)
+        collection.children.link(child)
+        sort_children(child)
+
 
 
 # Helper function to get or create a collection
@@ -75,8 +77,7 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
                 # set color tag
                 child.color_tag = COLLECTION_ENV_COLOR
 
-        # Get all collections the objects are currently in
-        all_collections = bpy.data.collections
+
 
         # Move objects
         for obj in scene.objects:
@@ -121,9 +122,9 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
 
         # Sort root collections
         sort_children(master_collection)
-        # Sort collections inside '_Env'
-        if "env_coll" in locals() and env_coll.name in master_collection.children:
-            sort_children(env_coll)
+        # # Sort collections inside '_Env'
+        # if "env_coll" in locals() and env_coll.name in master_collection.children:
+        #     sort_children(env_coll)
 
         # Report completion
 
@@ -132,55 +133,44 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
 
 
 class ORGANIZE_OT_colorize_collection_objects(bpy.types.Operator):
-    """Colorize objects based on their collection"""
+    """Colorize objects based on their collection hierarchy"""
 
     bl_idname = "cat.colorize_collection_objects"
     bl_label = "Colorize Objects by Collection"
     bl_options = {"REGISTER", "UNDO"}
 
-    #TODO: 1. 对子Collection也需要同样进行处理。2.不再考虑选中的objects，而是直接处理当前scene下所有的collection  3. 修改Viewport模式，切换到 bpy.context.space_data.shading.light = 'STUDIO' bpy.context.space_data.shading.color_type = 'OBJECT'
-
-
-    def invoke(self, context, event):
-        # 1. Check if there are any selected objects.
-        if not context.selected_objects:
-            self.report(
-                {"WARNING"}, "No objects selected. Please select objects to colorize."
-            )
-            return {"CANCELLED"}
-
-        # Check if selected objects are in any collection. This is almost always true.
-        # A more practical check is just ensuring objects are selected.
-        has_collection = any(obj.users_collection for obj in context.selected_objects)
-        if not has_collection:
-            self.report({"WARNING"}, "Selected objects are not in any collection.")
-            return {"CANCELLED"}
-
-        return self.execute(context)
-
     def execute(self, context):
-        # 2. Get the collections that the selected objects belong to.
-        selected_objects = context.selected_objects
-        collections_to_colorize = set()
-        for obj in selected_objects:
-            for coll in obj.users_collection:
-                collections_to_colorize.add(coll)
+        # Set viewport shading to show object colors
+        for area in context.screen.areas:
+            if area.type == "VIEW_3D":
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        space.shading.light = "STUDIO"
+                        space.shading.color_type = "OBJECT"
+                        break
 
-        if not collections_to_colorize:
-            self.report(
-                {"INFO"}, "Selected objects are not in any user-created collections."
-            )
+        # Recursive function to colorize objects in a collection and its children
+        def colorize_recursively(collection):
+            # Generate a random color for the current collection
+            color = (random.random(), random.random(), random.random(), 1.0)
+            # Color objects in the current collection
+            for obj in collection.objects:
+                obj.color = color
+            # Recurse for child collections
+            for child in collection.children:
+                colorize_recursively(child)
+
+        # Process all top-level collections in the scene
+        master_collection = context.scene.collection
+        if not master_collection.children:
+            self.report({"INFO"}, "No collections found to colorize.")
             return {"CANCELLED"}
 
-        # 3. For each collection, assign a different object color to its objects.
-        for coll in collections_to_colorize:
-            # Generate a random color for each collection
-            color = (random.random(), random.random(), random.random(), 1.0)
-            for obj in coll.objects:
-                obj.color = color
+        for coll in master_collection.children:
+            colorize_recursively(coll)
 
         self.report(
-            {"INFO"}, f"Colorized objects in {len(collections_to_colorize)} collection(s)."
+            {"INFO"},
+            "Colorized objects by collection.",
         )
         return {"FINISHED"}
-
