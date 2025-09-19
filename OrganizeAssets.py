@@ -3,6 +3,7 @@ import random
 
 # CONST
 COLLECTION_ENV_COLOR = "COLOR_03"
+COLLECTION_PLAS_COLOR = "COLOR_06"
 
 
 # Sort collections alphabetically
@@ -41,41 +42,37 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
     bl_label = "Organize Lights and Cameras"
     bl_options = {"REGISTER", "UNDO"}
 
-    def invoke(self, context, event):
-        scene = context.scene
-        has_lights = any(obj.type == "LIGHT" for obj in scene.objects)
-        has_cameras = any(obj.type == "CAMERA" for obj in scene.objects)
-
-        if not has_lights and not has_cameras:
-            self.report({"INFO"}, "No lights or cameras found in the current scene.")
-            return {"CANCELLED"}
-
-        return self.execute(context)
 
     def execute(self, context):
         scene = context.scene
         master_collection = scene.collection
 
+        # Change color of "Plasticiy" collection to purple
+        if "Plasticity" in master_collection.children:
+            plasticity_coll = master_collection.children["Plasticity"]
+            plasticity_coll.color_tag = COLLECTION_PLAS_COLOR  # Purple
+
         has_lights = any(obj.type == "LIGHT" for obj in scene.objects)
         has_cameras = any(obj.type == "CAMERA" for obj in scene.objects)
 
         # Create collections
-        env_coll = get_or_create_collection(
-            "_Env", master_collection, COLLECTION_ENV_COLOR
-        )
-        if has_lights:
-            lights_coll = get_or_create_collection(
-                "Lights", env_coll, COLLECTION_ENV_COLOR
+        if has_lights or has_cameras:
+            env_coll = get_or_create_collection(
+                "_Env", master_collection, COLLECTION_ENV_COLOR
             )
-        if has_cameras:
-            cameras_coll = get_or_create_collection(
-                "Cameras", env_coll, COLLECTION_ENV_COLOR
-            )
+            if has_lights:
+                lights_coll = get_or_create_collection(
+                    "Lights", env_coll, COLLECTION_ENV_COLOR
+                )
+            if has_cameras:
+                cameras_coll = get_or_create_collection(
+                    "Cameras", env_coll, COLLECTION_ENV_COLOR
+                )
 
-        if env_coll:
-            for child in env_coll.children:
-                # set color tag
-                child.color_tag = COLLECTION_ENV_COLOR
+            if env_coll:
+                for child in env_coll.children:
+                    # set color tag
+                    child.color_tag = COLLECTION_ENV_COLOR
 
 
 
@@ -88,13 +85,15 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
                         coll.objects.unlink(obj)
 
             if obj.type == "LIGHT":
-                unlink_from_all(lights_coll)
-                if obj.name not in lights_coll.objects:
-                    lights_coll.objects.link(obj)
+                if "lights_coll" in locals():
+                    unlink_from_all(lights_coll)
+                    if obj.name not in lights_coll.objects:
+                        lights_coll.objects.link(obj)
             elif obj.type == "CAMERA":
-                unlink_from_all(cameras_coll)
-                if obj.name not in cameras_coll.objects:
-                    cameras_coll.objects.link(obj)
+                if "cameras_coll" in locals():
+                    unlink_from_all(cameras_coll)
+                    if obj.name not in cameras_coll.objects:
+                        cameras_coll.objects.link(obj)
 
         # Remove empty collections that are not the master collection or the ones we just created
         collections_to_remove = []
@@ -120,11 +119,8 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
             if coll.name in bpy.data.collections:
                 bpy.data.collections.remove(coll)
 
-        # Sort root collections
         sort_children(master_collection)
-        # # Sort collections inside '_Env'
-        # if "env_coll" in locals() and env_coll.name in master_collection.children:
-        #     sort_children(env_coll)
+
 
         # Report completion
 

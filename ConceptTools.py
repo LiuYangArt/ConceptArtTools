@@ -391,3 +391,74 @@ class CopyVertexColorFromActiveOperator(bpy.types.Operator):
         return self.execute(context)
     
 
+
+class MODIFIER_OT_apply_boolean_mods(bpy.types.Operator):
+    bl_idname = "cat.apply_boolean_mods"
+    bl_label = "Apply Boolean Modifiers"
+    bl_description = "Apply all boolean modifiers on selected objects and remove the cutter objects"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.mode == 'OBJECT' and context.selected_objects
+
+    def invoke(self, context, event):
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if not selected_meshes:
+            self.report({'WARNING'}, "No mesh objects selected.")
+            return {'CANCELLED'}
+        return self.execute(context)
+    def execute(self, context):
+        # 1.在invoke中检查是否有选中的mesh object，如果没有则提示用户选择一个mesh object。
+        selected_meshes = [obj for obj in context.selected_objects if obj.type == 'MESH']
+
+        if not selected_meshes:
+            self.report({'WARNING'}, "No mesh objects selected.")
+            return {'CANCELLED'}
+
+        applied_count = 0
+        cutters_to_remove = set()
+
+        # 2.检查这些mesh是否有boolean modifiers，如果有，则应用这些modifiers。
+        for obj in selected_meshes:
+            # Make sure the object is the active one for the operator context
+            context.view_layer.objects.active = obj
+
+            # Collect boolean modifiers and their cutter objects
+            bool_modifiers = [mod for mod in obj.modifiers if mod.type == 'BOOLEAN']
+            
+            if not bool_modifiers:
+                continue
+
+            for mod in bool_modifiers:
+                if mod.object:
+                    cutters_to_remove.add(mod.object)
+                
+                try:
+                    bpy.ops.object.modifier_apply(modifier=mod.name)
+                    applied_count += 1
+                except RuntimeError as e:
+                    self.report({'ERROR'}, f"Failed to apply modifier '{mod.name}' on '{obj.name}': {e}")
+                    # If one fails, it might be better to stop to avoid further issues
+                    return {'CANCELLED'}
+
+        # 3.如果没有boolean modifiers，则提示用户没有找到boolean modifiers。
+        if applied_count == 0:
+            self.report({'INFO'}, "No boolean modifiers found on selected objects.")
+            return {'CANCELLED'}
+
+        # 并把对应的modifier object删除，清理data。
+        meshes_to_remove = []
+        for cutter in cutters_to_remove:
+            if cutter.data and cutter.data.users == 1:
+                meshes_to_remove.append(cutter.data)
+            bpy.data.objects.remove(cutter, do_unlink=True)
+
+        for mesh in meshes_to_remove:
+            bpy.data.meshes.remove(mesh)
+
+        self.report({'INFO'}, f"Applied {applied_count} boolean modifier(s) and removed cutter objects.")
+        return {"FINISHED"}
+
+
