@@ -173,7 +173,7 @@ def set_work_mode(type):
             bpy.context.space_data.overlay.show_overlays = True
 
             bpy.context.space_data.overlay.show_cursor = False
-
+            bpy.context.space_data.overlay.show_bones = False
             bpy.context.space_data.overlay.show_extras = False
             bpy.context.space_data.overlay.show_floor = False
             bpy.context.space_data.overlay.show_axis_x = False
@@ -278,7 +278,7 @@ def set_work_mode(type):
                      collection.hide_select=False
 
             bpy.context.space_data.overlay.show_overlays = True
-
+            bpy.context.space_data.overlay.show_bones = True
             bpy.context.space_data.overlay.show_extras = True
             bpy.context.space_data.overlay.show_floor = True
             bpy.context.space_data.overlay.show_axis_x = True
