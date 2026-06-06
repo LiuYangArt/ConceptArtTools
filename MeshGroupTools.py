@@ -47,6 +47,16 @@ def find_collection_parents(root_collection, target_collection):
     return parents
 
 
+# 判断 Collection 是否存在于指定 Scene 的 Collection 树中。
+# 参数:
+#     scene: Blender Scene，待检查的 Scene。
+#     target_collection: Blender Collection，需要查找的 Collection。
+def collection_is_in_scene(scene, target_collection):
+    return target_collection == scene.collection or bool(
+        find_collection_parents(scene.collection, target_collection)
+    )
+
+
 # 获取或创建 Mesh Group source 专用 Scene。
 # 参数: 无。
 def get_or_create_source_scene():
@@ -321,10 +331,7 @@ class CAT_OT_find_source_group(bpy.types.Operator):
             return {"CANCELLED"}
 
         source_collection = obj.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
-        source_in_current_scene = source_collection == context.scene.collection or bool(
-            find_collection_parents(context.scene.collection, source_collection)
-        )
-        if not source_in_current_scene:
+        if not collection_is_in_scene(context.scene, source_collection):
             source_scene = ensure_source_collection_in_source_scene(source_collection)
             if context.window:
                 context.window.scene = source_scene
