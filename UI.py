@@ -71,6 +71,7 @@ class CAT_PT_tool_panel(bpy.types.Panel):
         box_column.operator("cat.add_custom_axis", icon="ADD")
         box_column.operator("cat.apply_mesh_group", icon="MESH_DATA")
         box_column.operator("cat.isolate_group", icon="VIEWZOOM")
+        box_column.operator("cat.cleanup_source_groups", icon="TRASH")
 
         # box_column.operator(
         #     "object.refacet_and_wait", icon="ADD")

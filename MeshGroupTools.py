@@ -98,6 +98,55 @@ def move_source_collection_to_scene(source_collection, current_scene):
     return True
 
 
+# 收集 Collection 及其所有子 Collection。
+# 参数:
+#     collection: Blender Collection，递归收集入口。
+def get_collection_tree(collection):
+    collections = [collection]
+    for child_collection in collection.children:
+        collections.extend(get_collection_tree(child_collection))
+    return collections
+
+
+# 收集当前文件中仍被 Mesh Group instance 引用的 source Collection。
+# 参数: 无。
+def get_referenced_source_collections():
+    source_collections = set()
+    for obj in bpy.data.objects:
+        if not check_is_mesh_group_instance(obj):
+            continue
+        group_modifier = obj.modifiers.get(GROUP_MOD)
+        if group_modifier and group_modifier[MG_SOCKET_GROUP]:
+            source_collections.add(group_modifier[MG_SOCKET_GROUP])
+    return source_collections
+
+
+# 判断 source Collection 树是否仍被任意 Mesh Group instance 引用。
+# 参数:
+#     collection: Blender Collection，需要检查的 source Collection 根节点。
+#     referenced_collections: set，当前文件中仍被引用的 source Collection 集合。
+def source_collection_tree_is_referenced(collection, referenced_collections):
+    collection_tree = set(get_collection_tree(collection))
+    return bool(collection_tree.intersection(referenced_collections))
+
+
+# 删除 source Collection 树中的 Object 与 Collection datablock。
+# 参数:
+#     collection: Blender Collection，需要删除的 source Collection 根节点。
+def remove_source_collection_tree(collection):
+    collection_tree = get_collection_tree(collection)
+    source_objects = set(collection.all_objects)
+
+    for obj in source_objects:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+    for child_collection in reversed(collection_tree):
+        if child_collection.name in bpy.data.collections:
+            bpy.data.collections.remove(child_collection, do_unlink=True)
+
+    return len(source_objects)
+
+
 class CAT_OT_make_mesh_group(bpy.types.Operator):
     bl_idname = "cat.make_mesh_group"
     bl_label = "Make Mesh Group Instance"
@@ -344,6 +393,41 @@ class CAT_OT_find_source_group(bpy.types.Operator):
         bpy.ops.view3d.view_selected()
         return {"FINISHED"}
 
+
+class CAT_OT_cleanup_source_groups(bpy.types.Operator):
+    bl_idname = "cat.cleanup_source_groups"
+    bl_label = "Cleanup Source Groups"
+    bl_description = "Delete Mesh Group source collections that are not referenced by any instance"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        source_scene = bpy.data.scenes.get(GROUP_ROOT_COLL)
+        if source_scene is None:
+            self.report({"INFO"}, "No source scene found")
+            return {"FINISHED"}
+
+        referenced_collections = get_referenced_source_collections()
+        removed_collections = 0
+        removed_objects = 0
+        for source_collection in list(source_scene.collection.children):
+            if source_collection_tree_is_referenced(
+                source_collection,
+                referenced_collections,
+            ):
+                continue
+
+            removed_objects += remove_source_collection_tree(source_collection)
+            removed_collections += 1
+
+        bpy.ops.outliner.orphans_purge(do_local_ids=True)
+        self.report(
+            {"INFO"},
+            f"Removed {removed_collections} source group(s), {removed_objects} object(s)",
+        )
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return self.execute(context)
 
 class CAT_OT_add_custom_axis(bpy.types.Operator):
     bl_idname = "cat.add_custom_axis"
