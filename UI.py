@@ -65,6 +65,7 @@ class CAT_PT_tool_panel(bpy.types.Panel):
         box_column.operator("cat.make_mesh_group", icon="OUTLINER_OB_GROUP_INSTANCE")
 
         box_column.operator("cat.find_source_group", icon="VIEWZOOM")
+        box_column.operator("cat.add_selected_instances_to_asset_browser", icon="ASSET_MANAGER")
 
         box_column.operator("cat.reset_pivot", icon="EMPTY_ARROWS")
         box_column.operator("cat.realize_mesh_group", icon="OBJECT_DATA")
