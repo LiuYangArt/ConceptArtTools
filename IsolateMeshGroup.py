@@ -5,6 +5,7 @@ from .util import *
 EDIT_SCENE_PREFIX = "_CAT_temp:"
 LIGHT_COLLECTION_NAME = "_CAT_Lights"
 EDIT_OFFSET_PROP = "_CAT_isolate_group_edit_offset"
+ORIGINAL_SCENE_PROP = "_CAT_isolate_group_original_scene"
 
 
 def get_all_lights():
@@ -56,6 +57,24 @@ def set_scene_edit_offset(scene, offset):
     scene[EDIT_OFFSET_PROP] = [offset.x, offset.y, offset.z]
 
 
+# 记录进入 isolate 前所在的 Scene 名称。
+# 参数:
+#     scene: Blender Scene，保存 isolate 状态的临时场景。
+#     original_scene: Blender Scene，进入 isolate 前正在编辑的 Scene。
+def set_original_scene(scene, original_scene):
+    scene[ORIGINAL_SCENE_PROP] = original_scene.name
+
+
+# 获取进入 isolate 前所在的 Scene。
+# 参数:
+#     scene: Blender Scene，保存 isolate 状态的临时场景。
+def get_original_scene(scene):
+    original_scene_name = scene.get(ORIGINAL_SCENE_PROP)
+    if not original_scene_name:
+        return None
+    return bpy.data.scenes.get(original_scene_name)
+
+
 def translate_collection_roots(collection, offset):
     """
     按 world offset 平移 Collection 根 Object，保持子 Object 相对父级的位置。
@@ -83,18 +102,22 @@ class CAT_OT_isolate_group(bpy.types.Operator):
     def quit_edit_scene(self):
         """remove temp edit collection-instance scene and clean up data"""
         scene = bpy.context.scene
-        if scene.name.startswith(EDIT_SCENE_PREFIX):
-            source_collections = get_source_scene_collections(scene)
-            edit_offset = get_scene_edit_offset(scene)
-            for coll in source_collections:
-                translate_collection_roots(coll, -edit_offset)
-                coll.hide_viewport = True
-
-            bpy.data.scenes.remove(scene)
-            bpy.ops.outliner.orphans_purge(do_local_ids=True)
-            return True
-        else:  # not in edit mode
+        if not scene.name.startswith(EDIT_SCENE_PREFIX):
             return False
+
+        source_collections = get_source_scene_collections(scene)
+        edit_offset = get_scene_edit_offset(scene)
+        for coll in source_collections:
+            translate_collection_roots(coll, -edit_offset)
+            coll.hide_viewport = True
+
+        original_scene = get_original_scene(scene)
+        if original_scene and bpy.context.window:
+            bpy.context.window.scene = original_scene
+
+        bpy.data.scenes.remove(scene)
+        bpy.ops.outliner.orphans_purge(do_local_ids=True)
+        return True
 
     def execute(self, context):
         # prefs = context.preferences.addons[package_name].preferences
@@ -138,9 +161,10 @@ class CAT_OT_isolate_group(bpy.types.Operator):
         # print(f"Editing Group: {source_group.name}")
         self.report({"INFO"}, f"Editing Group: {source_group.name}")
 
+        original_scene = context.scene
         all_lights = get_all_lights()
         # get current world, get current world node tree
-        scene_world = bpy.context.scene.world
+        scene_world = original_scene.world
         scene_world_tree = scene_world.node_tree if scene_world else None
 
         # temp_scene_name
@@ -148,6 +172,7 @@ class CAT_OT_isolate_group(bpy.types.Operator):
         bpy.ops.scene.new(type="EMPTY")
         edit_scene = bpy.context.scene
         edit_scene.name = scene_name
+        set_original_scene(edit_scene, original_scene)
         bpy.context.window.scene = edit_scene
         edit_scene.collection.children.link(source_group)
 

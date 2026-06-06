@@ -6,6 +6,7 @@ from .util import (
     CUSTOM_NAME,
     GROUP_MOD,
     GROUP_NODE,
+    GROUP_ROOT_COLL,
     INSTANCE_NAME,
     INST_PREFIX,
     MG_SOCKET_GROUP,
@@ -22,6 +23,69 @@ from .util import (
     import_node_group,
     realize_mesh_group_modifier,
 )
+
+
+# 判断 parent Collection 是否已经直接包含 child Collection。
+# 参数:
+#     parent_collection: Blender Collection，待检查的父 Collection。
+#     child_collection: Blender Collection，待检查的子 Collection。
+def collection_has_child(parent_collection, child_collection):
+    return any(child == child_collection for child in parent_collection.children)
+
+
+# 查找 target Collection 在 root Collection 树中的直接父 Collection。
+# 参数:
+#     root_collection: Blender Collection，作为查找入口的根 Collection。
+#     target_collection: Blender Collection，需要查找父级的 Collection。
+def find_collection_parents(root_collection, target_collection):
+    parents = []
+    for child_collection in root_collection.children:
+        if child_collection == target_collection:
+            parents.append(root_collection)
+            continue
+        parents.extend(find_collection_parents(child_collection, target_collection))
+    return parents
+
+
+# 获取或创建 Mesh Group source 专用 Scene。
+# 参数: 无。
+def get_or_create_source_scene():
+    source_scene = bpy.data.scenes.get(GROUP_ROOT_COLL)
+    if source_scene is None:
+        source_scene = bpy.data.scenes.new(GROUP_ROOT_COLL)
+    return source_scene
+
+
+# 确保 source Collection 已挂到 Mesh Group source 专用 Scene。
+# 参数:
+#     source_collection: Blender Collection，Mesh Group modifier 引用的 source Collection。
+def ensure_source_collection_in_source_scene(source_collection):
+    source_scene = get_or_create_source_scene()
+    if not collection_has_child(source_scene.collection, source_collection):
+        source_scene.collection.children.link(source_collection)
+    return source_scene
+
+
+# 把 source Collection 移到专用 Scene，并从当前 Scene 的 Collection 树移除。
+# 参数:
+#     source_collection: Blender Collection，Mesh Group modifier 引用的 source Collection。
+#     current_scene: Blender Scene，执行 make mesh group 时所在的原 Scene。
+def move_source_collection_to_scene(source_collection, current_scene):
+    if source_collection == current_scene.collection:
+        return False
+
+    source_scene = ensure_source_collection_in_source_scene(source_collection)
+
+    if current_scene == source_scene:
+        return True
+
+    for parent_collection in find_collection_parents(
+        current_scene.collection,
+        source_collection,
+    ):
+        parent_collection.children.unlink(source_collection)
+
+    return True
 
 
 class CAT_OT_make_mesh_group(bpy.types.Operator):
@@ -53,11 +117,17 @@ class CAT_OT_make_mesh_group(bpy.types.Operator):
         description="Realize Mesh Group instances for use with modifiers",
         default=False,
     )
+    move_source_to_scene: bpy.props.BoolProperty(
+        name="Move Source to Scene",
+        description="Move source collections to the Mesh Group source scene",
+        default=True,
+    )
 
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "pivot")
         layout.prop(self, "realize")
+        layout.prop(self, "move_source_to_scene")
 
     def execute(self, context):
         selected_objects = context.selected_objects
@@ -114,6 +184,10 @@ class CAT_OT_make_mesh_group(bpy.types.Operator):
             instance_objects.append(instance_object)
 
         bpy.ops.object.select_all(action="DESELECT")
+        if self.move_source_to_scene:
+            for source_collection in source_groups:
+                move_source_collection_to_scene(source_collection, context.scene)
+
         bpy.ops.outliner.orphans_purge(do_local_ids=True)
         for source_collection in source_groups:
             source_collection.hide_viewport = True
@@ -247,6 +321,13 @@ class CAT_OT_find_source_group(bpy.types.Operator):
             return {"CANCELLED"}
 
         source_collection = obj.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
+        source_in_current_scene = source_collection == context.scene.collection or bool(
+            find_collection_parents(context.scene.collection, source_collection)
+        )
+        if not source_in_current_scene:
+            source_scene = ensure_source_collection_in_source_scene(source_collection)
+            if context.window:
+                context.window.scene = source_scene
         source_collection.hide_viewport = False
 
         bpy.ops.object.select_all(action="DESELECT")

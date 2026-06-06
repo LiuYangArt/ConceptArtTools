@@ -8,9 +8,7 @@ from .util import (
     MG_SOCKET_GROUP,
     MG_SOCKET_OFFSET,
     PIVOT_NAME,
-    WORLD_ORIGIN,
     check_is_mesh_group_instance,
-    set_object_pivot_location,
 )
 
 READONLY_MODIFIER_ATTRIBUTES = {
@@ -59,6 +57,15 @@ def get_parent_collection(instance_object, scene):
     return scene.collection
 
 
+# 获取 source Object 应用到 instance 位置时的 world space 平移量。
+# 参数:
+#     instance_object: 当前要 apply 的 Mesh Group instance。
+#     group_modifier: instance 上的 Mesh Group Geometry Nodes modifier。
+def get_instance_translation_offset(instance_object, group_modifier):
+    mesh_group_offset = Vector(group_modifier[MG_SOCKET_OFFSET])
+    return instance_object.matrix_world.translation.copy() + mesh_group_offset
+
+
 # 把单个 Mesh Group instance 转成真实 Object。
 # 参数:
 #     instance_object: 当前要 apply 的 Mesh Group instance。
@@ -72,9 +79,7 @@ def apply_mesh_group_instance(instance_object, parent_collection):
     if source_group is None:
         raise RuntimeError(f"Object {instance_object.name} has no source group")
 
-    offset = Vector(group_modifier[MG_SOCKET_OFFSET])
-    target_pivot_location = WORLD_ORIGIN - offset
-    instance_location = instance_object.location.copy()
+    instance_offset = get_instance_translation_offset(instance_object, group_modifier)
     new_collection = bpy.data.collections.new(instance_object.name)
     parent_collection.children.link(new_collection)
 
@@ -90,14 +95,12 @@ def apply_mesh_group_instance(instance_object, parent_collection):
         if source_object.data:
             new_object.data = source_object.data.copy()
         new_object.name = CUSTOM_NAME + source_object.name
-        new_object.location = source_object.location
-        new_object.rotation_euler = source_object.rotation_euler
-        new_object.scale = source_object.scale
+        new_object.parent = None
         new_collection.objects.link(new_object)
 
-        if new_object.type == "MESH":
-            set_object_pivot_location(new_object, target_pivot_location)
-        new_object.location = instance_location
+        matrix_world = source_object.matrix_world.copy()
+        matrix_world.translation += instance_offset
+        new_object.matrix_world = matrix_world
 
         for source_modifier in modifiers_to_copy:
             new_modifier = new_object.modifiers.new(source_modifier.name, source_modifier.type)
