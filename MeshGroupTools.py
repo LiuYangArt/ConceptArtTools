@@ -2,6 +2,11 @@ import bpy
 import bmesh
 from mathutils import Vector
 
+from .AssetBrowserTools import (
+    ASSET_STORAGE_SCENE,
+    find_asset_instance_by_source_collection,
+    object_is_in_scene,
+)
 from .util import (
     CUSTOM_NAME,
     GROUP_MOD,
@@ -306,6 +311,64 @@ class CAT_OT_realize_mesh_group(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# 按指定模式计算 Mesh Group instance 的新 pivot offset。
+# 参数:
+#     pivot: pivot 计算模式，支持 CENTER、LOWEST、CURSOR。
+#     source_objects: source Collection 中参与 Bounding Box 计算的 Object 集合。
+#     cursor_location: 当前 3D Cursor 在 instance local offset 语境下的位置。
+def calculate_mesh_group_pivot_offset(pivot, source_objects, cursor_location):
+    if pivot == "CENTER":
+        return find_objs_bb_center(source_objects)
+    if pivot == "LOWEST":
+        return find_objs_bb_lowest_center(source_objects)
+    if pivot == "CURSOR":
+        return cursor_location.copy()
+    return Vector((0, 0, 0))
+
+
+# 修改单个 Mesh Group instance 的 pivot，并补偿 Object location 保持视觉位置。
+# 参数:
+#     instance_object: 需要修改 pivot 的 Mesh Group instance Object。
+#     pivot: pivot 计算模式，支持 CENTER、LOWEST、CURSOR。
+#     cursor: 当前 Scene 的 3D Cursor。
+def reset_mesh_group_instance_pivot(instance_object, pivot, cursor):
+    object_location_before = instance_object.location.copy()
+    source_collection = instance_object.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
+    source_objects = source_collection.all_objects
+    offset_before = Vector(instance_object.modifiers[GROUP_MOD][MG_SOCKET_OFFSET]).copy()
+    cursor_location_before = cursor.location.copy()
+    cursor.location = cursor_location_before - object_location_before - offset_before
+
+    try:
+        offset_after = calculate_mesh_group_pivot_offset(
+            pivot,
+            source_objects,
+            cursor.location,
+        )
+        add_mesh_group_modifier(
+            instance_object,
+            target_group=source_collection,
+            offset=offset_after,
+        )
+        instance_object.location = instance_object.location + offset_before + offset_after
+    finally:
+        cursor.location = cursor_location_before
+
+
+# 查找选中 instance 对应的 storage asset instance。
+# 参数:
+#     instance_object: 当前选中的 Mesh Group instance Object。
+def find_storage_asset_instance_for_instance(instance_object):
+    source_collection = instance_object.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
+    asset_object = find_asset_instance_by_source_collection(source_collection)
+    storage_scene = bpy.data.scenes.get(ASSET_STORAGE_SCENE)
+    if asset_object is None or storage_scene is None:
+        return None
+    if not object_is_in_scene(asset_object, storage_scene):
+        return None
+    return asset_object
+
+
 class CAT_OT_reset_pivot(bpy.types.Operator):
     bl_idname = "cat.reset_pivot"
     bl_label = "Set Pivot Location"
@@ -321,38 +384,36 @@ class CAT_OT_reset_pivot(bpy.types.Operator):
         ],
         default="CENTER",
     )
+    apply_to_asset_source: bpy.props.BoolProperty(
+        name="Apply to Asset Source",
+        description="Change both the selected instance and its matching CAT asset source",
+        default=False,
+    )
 
     @classmethod
     def poll(cls, context):
         return context.mode == "OBJECT" and bool(context.selected_objects)
 
     def draw(self, context):
-        self.layout.prop(self, "pivot")
+        layout = self.layout
+        layout.prop(self, "pivot")
+        layout.prop(self, "apply_to_asset_source")
 
     def execute(self, context):
-        selected_objects = context.selected_objects
-        obj = selected_objects[0]
-        object_location_before = obj.location.copy()
+        obj = context.selected_objects[0]
+        asset_object = None
+        if self.apply_to_asset_source:
+            asset_object = find_storage_asset_instance_for_instance(obj)
+            if asset_object is None:
+                self.report({"WARNING"}, "No matching CAT asset source found")
+                return {"CANCELLED"}
 
-        source_collection = obj.modifiers[GROUP_MOD][MG_SOCKET_GROUP]
-        source_objects = source_collection.all_objects
-        offset_before = Vector(obj.modifiers[GROUP_MOD][MG_SOCKET_OFFSET]).copy()
         cursor = context.scene.cursor
-        cursor_location_before = cursor.location.copy()
-        cursor.location = cursor_location_before - object_location_before - offset_before
-
-        if self.pivot == "CENTER":
-            offset_after = find_objs_bb_center(source_objects)
-        elif self.pivot == "LOWEST":
-            offset_after = find_objs_bb_lowest_center(source_objects)
-        elif self.pivot == "CURSOR":
-            offset_after = cursor.location.copy()
-        else:
-            offset_after = Vector((0, 0, 0))
-
-        add_mesh_group_modifier(obj, target_group=source_collection, offset=offset_after)
-        obj.location = obj.location + offset_before + offset_after
-        cursor.location = cursor_location_before
+        reset_mesh_group_instance_pivot(obj, self.pivot, cursor)
+        if asset_object is not None:
+            if asset_object != obj:
+                reset_mesh_group_instance_pivot(asset_object, self.pivot, cursor)
+            asset_object.asset_generate_preview()
 
         return {"FINISHED"}
 
