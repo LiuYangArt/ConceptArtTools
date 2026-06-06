@@ -41,5 +41,11 @@
 - 除非用户明确要求，或该工具在执行前必须先确认/输入参数，否则不要使用 `invoke_props_dialog`、`invoke_props_popup`、`invoke_confirm` 这类阻塞式交互。
 - 如果项目内已有对应的 scene/global 参数同步模式，新增参数时应优先沿用，不要单独发明另一套交互或存储方式。
 
+## Release Packaging
+- Local package: `python scripts/build_release_package.py`
+- GitHub Release: push tag `vX.Y.Z`, or run `gh workflow run release.yml` to auto-bump patch version and release.
+- Package script includes root add-on files plus `PresetFiles/`; excludes `Addon/`, scripts, git files, caches, and old zip outputs.
+- Version source of truth: `blender_manifest.toml`.
+- Workflow dispatch release bumps patch version automatically, commits `blender_manifest.toml`, tags `vX.Y.Z`, then builds/releases that exact tag.
 ## 验证
 - 完成修改前，优先运行最小必要的验证命令；无法验证时明确说明原因。
