@@ -20,7 +20,7 @@ def run_import_json_op(self, context):
     bpy.ops.cat.import_unreal_scene("INVOKE_DEFAULT")
 
 
-class UIParams(PropertyGroup):
+class CAT_PG_ui_params(PropertyGroup):
     """UI参数"""
 
     work_mode: bpy.props.EnumProperty(
@@ -47,7 +47,7 @@ class UIParams(PropertyGroup):
         
 )
 
-class InstancedCollectionToolPanel(bpy.types.Panel):
+class CAT_PT_tool_panel(bpy.types.Panel):
     bl_idname = "CAT_PT_tool_panel"
     bl_label = "ConceptArtTools"
     bl_category = "CAT"  # Custom tab name
@@ -60,16 +60,16 @@ class InstancedCollectionToolPanel(bpy.types.Panel):
         layout = self.layout
         box = layout.box()
         box_column = box.column()
-        box_column.label(text="Plasticity Group Instance")
+        box_column.label(text="Mesh Group Instance")
 
         box_column.operator("cat.make_mesh_group", icon="OUTLINER_OB_GROUP_INSTANCE")
 
         box_column.operator("cat.find_source_group", icon="VIEWZOOM")
 
         box_column.operator("cat.reset_pivot", icon="EMPTY_ARROWS")
-        box_column.operator("cat.realize_meshgroup", icon="OBJECT_DATA")
+        box_column.operator("cat.realize_mesh_group", icon="OBJECT_DATA")
         box_column.operator("cat.add_custom_axis", icon="ADD")
-        box_column.operator("cat.apply_meshgroup", icon="MESH_DATA")
+        box_column.operator("cat.apply_mesh_group", icon="MESH_DATA")
         box_column.operator("cat.isolate_group", icon="VIEWZOOM")
 
         # box_column.operator(

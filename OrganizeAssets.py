@@ -1,9 +1,11 @@
 import bpy
 import random
 
+from .util import GROUP_ROOT_COLL
+
 # CONST
 COLLECTION_ENV_COLOR = "COLOR_03"
-COLLECTION_PLAS_COLOR = "COLOR_06"
+COLLECTION_MESH_GROUP_COLOR = "COLOR_06"
 
 
 # Sort collections alphabetically
@@ -35,7 +37,7 @@ def get_or_create_collection(name, parent_collection, color_tag="NONE"):
     return coll
 
 
-class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
+class CAT_OT_organize_lights_and_cameras(bpy.types.Operator):
     """Organize all lights and cameras into dedicated collections"""
 
     bl_idname = "cat.organize_lights_and_cameras"
@@ -47,10 +49,10 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
         scene = context.scene
         master_collection = scene.collection
 
-        # Change color of "Plasticiy" collection to purple
-        if "Plasticity" in master_collection.children:
-            plasticity_coll = master_collection.children["Plasticity"]
-            plasticity_coll.color_tag = COLLECTION_PLAS_COLOR  # Purple
+        # Change color of Mesh Group source collection to purple
+        if GROUP_ROOT_COLL in master_collection.children:
+            mesh_group_collection = master_collection.children[GROUP_ROOT_COLL]
+            mesh_group_collection.color_tag = COLLECTION_MESH_GROUP_COLOR
 
         has_lights = any(obj.type == "LIGHT" for obj in scene.objects)
         has_cameras = any(obj.type == "CAMERA" for obj in scene.objects)
@@ -128,7 +130,7 @@ class ORGANIZE_OT_lights_and_cameras(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class ORGANIZE_OT_colorize_collection_objects(bpy.types.Operator):
+class CAT_OT_colorize_collection_objects(bpy.types.Operator):
     """Colorize objects based on their collection hierarchy"""
 
     bl_idname = "cat.colorize_collection_objects"

@@ -3,7 +3,7 @@ from .util import *
 import bmesh
 import math
 
-class SyncMaterialsToActiveOperator(bpy.types.Operator):
+class CAT_OT_sync_materials_from_active(bpy.types.Operator):
     bl_idname = "cat.sync_materials_from_active"
     bl_label = "Sync Materials From Active"
     bl_description = "Assign Active Object Material to Selected Objects"
@@ -49,7 +49,7 @@ class SyncMaterialsToActiveOperator(bpy.types.Operator):
 
 
 
-class SetWorkModeOperator(bpy.types.Operator):
+class CAT_OT_set_work_mode(bpy.types.Operator):
     bl_idname = "cat.set_work_mode"
     bl_label = "Set Work Mode"
     bl_options = {'UNDO'}
@@ -83,7 +83,7 @@ def break_link_from_assetlib(object):
     bpy.data.meshes.remove(mesh_data)
     unlinked_mesh.name = mesh_name
     return unlinked_mesh
-class SetDecalObjectOperator(bpy.types.Operator):
+class CAT_OT_set_decal_object(bpy.types.Operator):
     bl_idname = "cat.set_decal_object"
     bl_label = "Set Decal Object"
     bl_description = "Turn off shadow and add displacement offset, In Edit Mode remove non-selected faces and set pivot to center of selected faces"  
@@ -248,7 +248,7 @@ def set_material_data_to_obj(obj, mat_basecolor, mat_metallic, mat_roughness):
         )
 
 
-class MatchMaterialToDecalOperator(bpy.types.Operator):
+class CAT_OT_match_material_to_decal(bpy.types.Operator):
     bl_idname = "cat.match_material_to_decal"
     bl_label = "Match Material to Decal"
     bl_options = {"UNDO"}
@@ -354,7 +354,7 @@ def set_object_vertexcolor(target_object, color: tuple, vertexcolor_name: str) -
         mesh.attributes.active_color = color_attribute
 
 
-class CopyVertexColorFromActiveOperator(bpy.types.Operator):
+class CAT_OT_copy_vertex_color_from_active(bpy.types.Operator):
     bl_idname = "cat.copy_vertex_color_from_active"
     bl_label = "Copy Vertex Color From Active"
     bl_options = {"UNDO"}
@@ -392,7 +392,7 @@ class CopyVertexColorFromActiveOperator(bpy.types.Operator):
     
 
 
-class MODIFIER_OT_apply_boolean_mods(bpy.types.Operator):
+class CAT_OT_apply_boolean_mods(bpy.types.Operator):
     bl_idname = "cat.apply_boolean_mods"
     bl_label = "Apply Boolean Modifiers"
     bl_description = "Apply all boolean modifiers on selected objects and remove the cutter objects"

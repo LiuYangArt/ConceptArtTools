@@ -316,7 +316,7 @@ def find_all_missing_assets_and_users():
 
 
 
-class ShowMissingAssetsOperator(bpy.types.Operator):
+class CAT_OT_show_missing_assets(bpy.types.Operator):
     bl_idname = "cat.show_missing_assets"
     bl_label = "Show Missing Assets"
 

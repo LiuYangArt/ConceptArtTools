@@ -16,7 +16,7 @@ from . import auto_load
 
 # 传递UI参数
 from bpy.props import PointerProperty
-from .UI import UIParams
+from .UI import CAT_PG_ui_params
 
 auto_load.init()
 
@@ -24,8 +24,12 @@ auto_load.init()
 def register():
     auto_load.register()
     # 注册UI参数
-    bpy.types.Scene.cat_params = PointerProperty(type=UIParams)
+    if hasattr(bpy.types.Scene, "cat_params"):
+        del bpy.types.Scene.cat_params
+    bpy.types.Scene.cat_params = PointerProperty(type=CAT_PG_ui_params)
 
 
 def unregister():
+    if hasattr(bpy.types.Scene, "cat_params"):
+        del bpy.types.Scene.cat_params
     auto_load.unregister()

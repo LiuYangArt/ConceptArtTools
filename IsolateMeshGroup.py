@@ -28,7 +28,7 @@ def get_collection_root_objects(collection):
     """
     获取 Collection 内需要整体平移的根 Object，避免父子对象被重复平移。
     参数:
-        collection: source Collection，包含 MeshGroup 子对象。
+        collection: source Collection，包含 Mesh Group 子对象。
     """
     collection_objects = set(collection.all_objects)
     return [obj for obj in collection.all_objects if obj.parent not in collection_objects]
@@ -60,7 +60,7 @@ def translate_collection_roots(collection, offset):
     """
     按 world offset 平移 Collection 根 Object，保持子 Object 相对父级的位置。
     参数:
-        collection: source Collection，包含 MeshGroup 子对象。
+        collection: source Collection，包含 Mesh Group 子对象。
         offset: mathutils.Vector，world space 平移量。
     """
     if offset.length == 0:
@@ -72,7 +72,7 @@ def translate_collection_roots(collection, offset):
         obj.matrix_world = matrix_world
 
 
-class EditCollection(bpy.types.Operator):
+class CAT_OT_isolate_group(bpy.types.Operator):
     """Edit the Collection referenced by this Collection Instance in a new Scene"""
 
     bl_idname = "cat.isolate_group"
@@ -107,7 +107,7 @@ class EditCollection(bpy.types.Operator):
                 self.report({"INFO"}, "Already in edit scene mode, Quit Edit")
             return {"FINISHED"}
 
-        # 检查ActiveObject是否MeshGroup Instance
+        # 检查ActiveObject是否Mesh Group Instance
         if active_obj is None:
             print("No active object")
             quit_edit = self.quit_edit_scene()
@@ -118,7 +118,7 @@ class EditCollection(bpy.types.Operator):
             return {"CANCELLED"}
         if active_obj.get(CUSTOM_NAME) == INSTANCE_NAME:  # 检查是否有 CAT 属性标记
             group_mod = active_obj.modifiers.get(GROUP_MOD)
-            if group_mod:  # 获取MeshGroup Instance的参数
+            if group_mod:  # 获取Mesh Group Instance的参数
                 source_group = group_mod[MG_SOCKET_GROUP]
                 inst_offset = group_mod[MG_SOCKET_OFFSET]
                 inst_offset = Vector((inst_offset[0], inst_offset[1], inst_offset[2]))
@@ -126,13 +126,13 @@ class EditCollection(bpy.types.Operator):
                 # source_objs = source_group.all_objects
 
         if not source_group:
-            print("Active item is not a MeshGroup Instance")
+            print("Active item is not a Mesh Group Instance")
             quit_edit = self.quit_edit_scene()
             if quit_edit:
                 self.report({"INFO"}, "Already in edit scene mode, Quit Edit")
                 return {"FINISHED"}
 
-            self.report({"WARNING"}, "Active item is not a MeshGroup Instance")
+            self.report({"WARNING"}, "Active item is not a Mesh Group Instance")
             return {"CANCELLED"}
 
         # print(f"Editing Group: {source_group.name}")

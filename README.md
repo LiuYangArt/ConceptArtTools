@@ -1,4 +1,1 @@
-for plasticity-bridge group instance tool use https://github.com/LiuYangArt/PlasticityHelper
-
-
-this addon is highly customize for my own workflow and have many experimental shit. 
+ConceptArtTools is a Blender add-on for concept-art workflow utilities, Mesh Group instances, library checks, and scene organization.

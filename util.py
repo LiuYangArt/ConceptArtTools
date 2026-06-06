@@ -1,16 +1,11 @@
 import bpy
 from mathutils import Vector
-import addon_utils
+from pathlib import Path
 
 # constants | 常值
 
-ADDON_NAME = "Concept Art Tools"
-for mod in addon_utils.modules():
-    if mod.bl_info["name"] == ADDON_NAME:
-        filepath = mod.__file__
-        path = filepath.split("\__init__.py")[0]
-        path = path.replace("\\", "/")
-        PRESET_PATH = path + "/PresetFiles/Presets.blend"
+ADDON_PATH = Path(__file__).parent
+PRESET_PATH = str(ADDON_PATH / "PresetFiles" / "Presets.blend").replace("\\", "/")
 GROUP_MOD = "CAT_MeshGroup"
 MIRROR_MOD = "CAT_Mirror"
 ARRAY_MOD = "CAT_Array"
@@ -21,7 +16,7 @@ CUSTOM_NAME = "CAT"
 PIVOT_NAME = "CAT_Inst_Pivot"
 DECAL_NAME = "CAT_Decal"
 INSTANCE_NAME = "CAT_Inst"
-TEMP_MESH = "cat_meshgruop_tempmesh"
+TEMP_MESH = "cat_mesh_group_tempmesh"
 OFFSET_ATTR = "CAT_Offset"
 WORLD_ORIGIN = Vector((0, 0, 0))
 MG_SOCKET_GROUP = "Socket_2"
@@ -61,8 +56,8 @@ def import_node_group(file_path, node_name) -> bpy.types.NodeGroup:
     return node_import
 
 
-def add_meshgroup_modifier(mesh, target_group=None, offset=Vector((0, 0, 0))):
-    """添加Geometry Nodes MeshGroup Modifier"""
+def add_mesh_group_modifier(mesh, target_group=None, offset=Vector((0, 0, 0))):
+    """添加Geometry Nodes Mesh Group Modifier"""
 
     check_modifier = False
     offset = Vector(offset)
@@ -121,8 +116,8 @@ def add_array_modifier(mesh):
         array_modifier = mesh.modifiers.new(name="CAT_Array", type="ARRAY")
 
 
-def realize_meshgroup_modifier(mesh, realize=True):
-    """Realize Geometry Nodes MeshGroup Modifier"""
+def realize_mesh_group_modifier(mesh, realize=True):
+    """Realize Geometry Nodes Mesh Group Modifier"""
     # check if the mesh has the modifier
     check_modifier = False
 
@@ -136,38 +131,33 @@ def realize_meshgroup_modifier(mesh, realize=True):
             break
 
     if check_modifier is False:
-        print("Mesh does not have the MeshGroup modifier")
+        print("Mesh does not have the Mesh Group modifier")
 
     return check_modifier
 
 
-def check_is_meshgroup_inst(obj):
-    """Check if the object is a mesh-group instance"""
-    is_meshgroup = False
+def check_is_mesh_group_instance(obj):
+    """Check if the object is a Mesh Group instance"""
+    if obj.type != "MESH" or obj.get(CUSTOM_NAME) != INSTANCE_NAME:
+        return False
 
-    if obj.type == "MESH":
-        try:
-            if obj[CUSTOM_NAME] == INSTANCE_NAME:
-                # if has mesh group modifier
-                for modifier in obj.modifiers:
-                    if modifier.type == "NODES":
-                        if modifier.node_group.name == GROUP_NODE:
-                            is_meshgroup = True
-        except:
-            pass
-    return is_meshgroup
+    for modifier in obj.modifiers:
+        if modifier.type == "NODES" and modifier.node_group:
+            if modifier.node_group.name == GROUP_NODE:
+                return True
+    return False
 
 
-def set_work_mode(type):
+def set_work_mode(work_mode):
     """Set the work mode of the viewport"""
-    match type:
+    match work_mode:
         case "MODELING":
             for collection in bpy.data.collections:
                 if collection.name.startswith("_"):
                      collection.hide_select=True
                 if collection.name=="_localfog":
                     collection.hide_viewport=True
-                if collection.name=="Plasticity":
+                if collection.name == GROUP_ROOT_COLL:
                     collection.hide_viewport=False
                     collection.hide_select=False
             bpy.context.space_data.overlay.show_overlays = True
@@ -206,7 +196,7 @@ def set_work_mode(type):
                 if collection.name.startswith("_localfog"):
                      collection.hide_select=True
                      collection.hide_viewport=False
-                # if collection.name=="Plasticity" or "Decal" in collection.name:
+                # if collection.name == GROUP_ROOT_COLL or "Decal" in collection.name:
                 #     no_select_collections.append(collection)
             for collection in no_select_collections:
                 collection.hide_select=True
@@ -242,7 +232,7 @@ def set_work_mode(type):
                 if collection.name.startswith("_localfog"):
                      collection.hide_select=False
                      collection.hide_viewport=False
-                if collection.name=="Plasticity":
+                if collection.name == GROUP_ROOT_COLL:
                     no_select_collections.append(collection)
             for collection in no_select_collections:
                 collection.hide_select=True
@@ -307,9 +297,9 @@ def find_objs_bb_center(objs) -> Vector:
     """Find the center of the bounding box of all objects"""
 
     all_coords = []
-    for o in objs:
-        bb = o.bound_box
-        mat = o.matrix_world
+    for obj in objs:
+        bb = obj.bound_box
+        mat = obj.matrix_world
         for vert in bb:
             coord = mat @ Vector(vert)
             all_coords.append(coord)
@@ -325,9 +315,9 @@ def find_objs_bb_lowest_center(objs) -> Vector:
     """Find the lowest_center of the bounding box of all objects"""
 
     all_coords = []
-    for o in objs:
-        bb = o.bound_box
-        mat = o.matrix_world
+    for obj in objs:
+        bb = obj.bound_box
+        mat = obj.matrix_world
         for vert in bb:
             coord = mat @ Vector(vert)
             all_coords.append(coord)

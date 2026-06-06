@@ -34,7 +34,7 @@ def find_users(datablock):
     return users
 
 
-class FindUsersOperator(bpy.types.Operator):
+class CAT_OT_find_asset_users(bpy.types.Operator):
     bl_idname = "cat.find_asset_users"
     bl_label = "Find Asset Users"
 
