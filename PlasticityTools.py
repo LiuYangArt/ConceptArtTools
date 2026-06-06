@@ -84,7 +84,8 @@ class MakeMeshGroupOperator(bpy.types.Operator):
         bpy.ops.object.select_all(action="DESELECT")
         bpy.ops.outliner.orphans_purge(do_local_ids=True)
         for source_coll in source_groups:
-                source_coll.hide_viewport = True
+            source_coll.hide_viewport = True
+            source_coll.hide_render = True
         for obj in instance_objs:
             obj.select_set(True)
 
